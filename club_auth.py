@@ -179,7 +179,7 @@ def init_auth(app):
 
     @app.after_request
     def private_headers(response):
-        if request.blueprint == "club":
+        if request.blueprint in {"club", "bank"}:
             response.headers["Cache-Control"] = "no-store, private"
             response.headers["Pragma"] = "no-cache"
             response.headers["X-Robots-Tag"] = "noindex, nofollow"

@@ -11,6 +11,7 @@ from joserfc import jwt
 from joserfc.jwk import RSAKey
 
 from club_auth import init_auth, member_required
+from club_banking import init_banking
 
 
 class ClubAuthTests(TestCase):
@@ -28,6 +29,7 @@ class ClubAuthTests(TestCase):
         )
         self.app.add_url_rule("/", "home", lambda: "Home")
         init_auth(self.app)
+        init_banking(self.app)
 
         @self.app.get("/private-test")
         @member_required

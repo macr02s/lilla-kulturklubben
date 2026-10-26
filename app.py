@@ -5,12 +5,14 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request
 from app_config import auth_settings, runtime_environment
 from club_auth import init_auth
+from club_banking import init_banking
 from visit_stockholm import get_events, SourceUnavailable
 
 runtime_env = runtime_environment(os.environ, Path(__file__).with_name(".env"))
 app = Flask(__name__)
 app.config.update(auth_settings(runtime_env))
 init_auth(app)
+init_banking(app)
 
 missing_auth = [key for key in ("SECRET_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CLUB_MEMBERS")
                 if not str(app.config.get(key) or "").strip()]
