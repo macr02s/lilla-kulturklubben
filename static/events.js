@@ -16,6 +16,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   let filtersNeedRefresh = false;
   let category = '', subcategory = '', next = null, allCategories = [], controller;
   let failedPage = 1, pending = false;
+  let catalogUpdating = false, lastRefresh = 0;
 
   function node(tag, text, className) {
     const element = document.createElement(tag);
@@ -101,10 +102,11 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   }
 
   async function load(page) {
+    lastRefresh = Date.now();
     controller?.abort();
     controller = new AbortController();
     const current = controller;
-    const timeout = setTimeout(() => current.abort('timeout'), 20000);
+    const timeout = setTimeout(() => current.abort('timeout'), 30000);
     failedPage = page;
     pending = true;
     results.setAttribute('aria-busy', 'true');
@@ -127,6 +129,8 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       if (!response.ok) throw new Error(data.error);
       if (current !== controller) return;
       allCategories = data.categories;
+      catalogUpdating = Boolean(data.pending_sources?.length);
+      lastRefresh = Date.now();
       // Keep the controls stable while visitors navigate with a keyboard.
       if (!categories.children.length || filtersNeedRefresh) {
         renderFilters();
@@ -140,7 +144,8 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       status.textContent = !selectedSources.length ? 'Välj minst en leverantör för att visa evenemang.' : data.count === 0 ? 'Inga evenemang hittades för dina val.' :
         `${data.count} ${eventLabel}${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
       if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
-      if (data.truncated) status.textContent += ' · Urval av de närmaste evenemangen.';
+      if (data.truncated) status.textContent += ' · Del av utbudet visas.';
+      if (data.pending_sources?.length) status.textContent += ' · Utbudet från ' + data.pending_sources.join(', ') + ' uppdateras.';
       if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';
       if (data.unavailable_sources?.length) status.textContent += ' · Tillfälligt saknas utbud från ' + data.unavailable_sources.join(', ') + '.';
     } catch (error) {
@@ -192,7 +197,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   retry.addEventListener('click', () => load(failedPage));
   // Refresh visible results without interrupting an ongoing request.
   setInterval(() => {
-    if (!document.hidden && !pending) load(1);
-  }, 10 * 60 * 1000);
+    if (!document.hidden && !pending && Date.now() - lastRefresh >= (catalogUpdating ? 60 * 1000 : 10 * 60 * 1000)) load(1);
+  }, 60 * 1000);
   load(1);
 });

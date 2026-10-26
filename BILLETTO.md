@@ -48,8 +48,9 @@ Inga köp, biljetter, deltagare eller kontouppgifter hämtas.
 
 `club_events.py` samlar kataloger från anslutna adaptrar. Visit Stockholm
 används alltid, Ticketmaster och Billetto när respektive nyckel finns.
-Tickster, AXS, Nortic, Kulturbiljetter och Eventbrite är inte anslutna.
-De kan få egna adaptrar när dokumenterad åtkomst finns.
+Tickster och Kulturbiljetter har valfria adaptrar som behöver egna nycklar; se
+[TICKSTER_KULTURBILJETTER.md](TICKSTER_KULTURBILJETTER.md). AXS, Nortic och
+Eventbrite är inte anslutna.
 
 Varje post normaliseras till namn, plats, stad, datum, klockslag, kategori,
 bild, biljettlänk och källor. Bara bekräftad stad Stockholm godtas;

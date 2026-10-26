@@ -2,7 +2,8 @@
 import re
 from event_months import month_range
 
-SOURCE_NAMES = {"visit-stockholm": "Visit Stockholm", "ticketmaster": "Ticketmaster", "billetto": "Billetto"}
+SOURCE_NAMES = {"visit-stockholm": "Visit Stockholm", "ticketmaster": "Ticketmaster", "billetto": "Billetto",
+                "tickster": "Tickster", "kulturbiljetter": "Kulturbiljetter"}
 
 
 def parse_sources(query):

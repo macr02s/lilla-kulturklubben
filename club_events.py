@@ -13,9 +13,11 @@ from zoneinfo import ZoneInfo
 import billetto_events as billetto
 import ticketmaster_events as ticketmaster
 import visit_stockholm as visit
+import tickster_events as tickster
+import kulturbiljetter_events as kulturbiljetter
 
 _cache, _lock = OrderedDict(), Lock()
-PRIORITY = {"Ticketmaster": 0, "Billetto": 1, "Visit Stockholm": 2}
+PRIORITY = {"Ticketmaster": 0, "Billetto": 1, "Tickster": 2, "Kulturbiljetter": 3, "Visit Stockholm": 4}
 LABELS = {"music": "Musik", "stage": "Scen & film", "art": "Utställningar",
           "sport": "Sport & hälsa", "food": "Mat & dryck", "family": "Familj", "other": "Övrigt"}
 
@@ -45,7 +47,8 @@ def normalize(raw, source):
     if not isinstance(raw, dict) or text_key(raw.get("city")) != "stockholm":
         return None
     url = {"Visit Stockholm": visit.source_url, "Ticketmaster": ticketmaster.source_url,
-           "Billetto": billetto.event_url}[source](raw.get("url"))
+           "Billetto": billetto.event_url, "Tickster": tickster.source_url,
+           "Kulturbiljetter": kulturbiljetter.source_url}[source](raw.get("url"))
     title, venue = str(raw.get("title") or "").strip(), str(raw.get("venue") or "").strip()
     try:
         start = date.fromisoformat(raw.get("start") or "").isoformat()
@@ -58,7 +61,7 @@ def normalize(raw, source):
     if not isinstance(clock, str) or not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", clock):
         clock = ""
     image = raw.get("image") or ""
-    image = visit.source_url(image) if source == "Visit Stockholm" else ticketmaster.source_url(image, image=True) if source == "Ticketmaster" else ""
+    image = visit.source_url(image) if source == "Visit Stockholm" else ticketmaster.source_url(image, image=True) if source == "Ticketmaster" else kulturbiljetter.source_url(image) if source == "Kulturbiljetter" else ""
     category = category_id(raw.get("category"))
     return {"title": title, "url": url, "venue": venue, "city": "Stockholm", "start": start, "end": end,
             "time": clock, "category_id": category, "category": LABELS[category], "genre": str(raw.get("genre") or ""),
@@ -120,28 +123,43 @@ def _billetto_catalog(settings, start_date, end_date):
     return billetto.get_catalog(settings["BILLETTO_API_KEYPAIR"], start_date, end_date)
 
 
+def _tickster_catalog(settings, start_date, end_date):
+    return tickster.get_catalog(settings["TICKSTER_API_KEY"], start_date, end_date)
+
+
+def _kulturbiljetter_catalog(settings, start_date, end_date):
+    return kulturbiljetter.get_catalog(settings["KULTURBILJETTER_API_KEY"], start_date, end_date)
+
+
 def providers(settings, selected_sources=None):
     active = {"Visit Stockholm": _visit_catalog}
     if settings.get("TICKETMASTER_API_KEY"):
         active["Ticketmaster"] = _ticketmaster_catalog
     if settings.get("BILLETTO_API_KEYPAIR"):
         active["Billetto"] = _billetto_catalog
+    if settings.get("TICKSTER_API_KEY"):
+        active["Tickster"] = _tickster_catalog
+    if settings.get("KULTURBILJETTER_API_KEY"):
+        active["Kulturbiljetter"] = _kulturbiljetter_catalog
     return active if selected_sources is None else {name: fetch for name, fetch in active.items() if name in selected_sources}
 
 
 def _catalog(settings, start_date, end_date, selected_sources=None):
-    items, unavailable, successful = [], [], []
+    items, unavailable, successful, pending = [], [], [], []
     truncated, stale = False, False
     today = datetime.now(ZoneInfo("Europe/Stockholm")).date().isoformat()
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         jobs = {name: executor.submit(fetch, settings, start_date, end_date) for name, fetch in providers(settings, selected_sources).items()}
         for name, job in jobs.items():
             try:
                 data = job.result()
-            except (visit.SourceUnavailable, ticketmaster.SourceUnavailable, billetto.SourceUnavailable):
+            except (visit.SourceUnavailable, ticketmaster.SourceUnavailable, billetto.SourceUnavailable,
+                    tickster.SourceUnavailable, kulturbiljetter.SourceUnavailable):
                 unavailable.append(name)
                 continue
             successful.append(name)
+            if data.get("pending"):
+                pending.append(name)
             truncated = truncated or data.get("truncated", False)
             stale = stale or data.get("stale", False)
             for raw in data["events"]:
@@ -160,17 +178,17 @@ def _catalog(settings, start_date, end_date, selected_sources=None):
     return {"events": events, "categories": [{"slug": slug, "title": LABELS[slug], "subcategories": [
         {"slug": child, "title": title} for child, title in sorted(children.items(), key=lambda i: i[1])]}
         for slug, children in sorted(categories.items(), key=lambda i: LABELS[i[0]])],
-        "unavailable_sources": unavailable, "sources": successful, "stale": stale, "truncated": truncated,
+        "unavailable_sources": unavailable, "pending_sources": pending, "sources": successful, "stale": stale, "truncated": truncated,
         "combined": True, "updated": datetime.now(timezone.utc).isoformat()}
 
 
 def get_events(settings, category="", subcategory="", page=1, start_date="", end_date="", selected_sources=None):
     selected = tuple(providers(settings, selected_sources))
-    credentials = tuple(settings.get(k, "") for k in ("TICKETMASTER_API_KEY", "BILLETTO_API_KEYPAIR"))
+    credentials = tuple(settings.get(k, "") for k in ("TICKETMASTER_API_KEY", "BILLETTO_API_KEYPAIR", "TICKSTER_API_KEY", "KULTURBILJETTER_API_KEY"))
     key = (sha256(repr(credentials).encode()).hexdigest(), start_date, end_date, selected)
     with _lock:
         cached = _cache.get(key)
-        ttl = 60 if cached and cached[1]["unavailable_sources"] else 600
+        ttl = 60 if cached and (cached[1]["unavailable_sources"] or cached[1].get("pending_sources")) else 600
         if cached and monotonic() - cached[0] < ttl:
             data = cached[1]
         else:
