@@ -2,16 +2,20 @@ import re
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
-from app_config import auth_settings
+from app_config import auth_settings, runtime_environment
 from club_auth import init_auth
 from visit_stockholm import get_events, SourceUnavailable
 
-load_dotenv(Path(__file__).with_name(".env"))
+runtime_env = runtime_environment(os.environ, Path(__file__).with_name(".env"))
 app = Flask(__name__)
-app.config.update(auth_settings(os.environ))
+app.config.update(auth_settings(runtime_env))
 init_auth(app)
+
+missing_auth = [key for key in ("SECRET_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CLUB_MEMBERS")
+                if not str(app.config.get(key) or "").strip()]
+if missing_auth:
+    app.logger.warning("Google login is disabled. Set these environment variables: %s", ", ".join(missing_auth))
 
 @app.route("/")
 def home():
@@ -34,4 +38,4 @@ def events():
         return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
 
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")
+    app.run(debug=runtime_env.get("FLASK_DEBUG") == "1")

@@ -2,12 +2,38 @@
 from datetime import timedelta
 from urllib.parse import urlsplit
 
+from dotenv import dotenv_values
+
+
+def on_render(environ):
+    return environ.get("RENDER", "").lower() == "true" or bool(environ.get("RENDER_EXTERNAL_URL", "").strip())
+
+
+def runtime_environment(environ, env_file):
+    """Use .env on the developer's computer; Render uses service variables only."""
+    if on_render(environ):
+        return dict(environ)
+    local = {key: value for key, value in dotenv_values(env_file).items() if value is not None}
+    return {**local, **environ}
+
+
+def _loopback_http(value):
+    parts = urlsplit(value)
+    return parts.scheme == "http" and parts.hostname in {"127.0.0.1", "localhost", "::1"}
+
 
 def auth_settings(environ):
     # Never derive OAuth callback URLs from an incoming Host header.
-    base_url = (environ.get("PUBLIC_BASE_URL") or environ.get("RENDER_EXTERNAL_URL")
-                or "http://127.0.0.1:5000").strip().rstrip("/")
+    hosted = on_render(environ)
+    public_url = environ.get("PUBLIC_BASE_URL", "").strip()
+    if hosted and _loopback_http(public_url):
+        public_url = ""
+    base_url = (public_url or environ.get("RENDER_EXTERNAL_URL", "").strip()
+                or "http://127.0.0.1:5000").rstrip("/")
     redirect_uri = (environ.get("GOOGLE_REDIRECT_URI") or "").strip()
+    # A local .env imported into Render must not send members to their own computer.
+    if hosted and _loopback_http(redirect_uri):
+        redirect_uri = ""
     if not redirect_uri:
         parts = urlsplit(base_url)
         local = parts.scheme == "http" and parts.hostname in {"127.0.0.1", "localhost"}
@@ -15,8 +41,7 @@ def auth_settings(environ):
                 or parts.path or parts.query or parts.fragment or parts.username):
             raise ValueError("PUBLIC_BASE_URL must be an HTTPS origin, or localhost over HTTP.")
         redirect_uri = base_url + "/auth/google/callback"
-    callback = urlsplit(redirect_uri)
-    local_http = callback.scheme == "http" and callback.hostname in {"127.0.0.1", "localhost"}
+    local_http = not hosted and _loopback_http(redirect_uri)
     settings = {
         "SECRET_KEY": environ.get("SECRET_KEY"),
         "GOOGLE_CLIENT_ID": environ.get("GOOGLE_CLIENT_ID", ""),
@@ -26,7 +51,7 @@ def auth_settings(environ):
         "CLUB_CALENDAR_ID": environ.get("CLUB_CALENDAR_ID", "").strip(),
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
-        "SESSION_COOKIE_SECURE": environ.get("SESSION_COOKIE_SECURE", "false" if local_http else "true").lower() == "true",
+        "SESSION_COOKIE_SECURE": not local_http or environ.get("SESSION_COOKIE_SECURE", "").lower() == "true",
         "PERMANENT_SESSION_LIFETIME": timedelta(hours=8),
         "SESSION_REFRESH_EACH_REQUEST": False,
     }

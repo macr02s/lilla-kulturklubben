@@ -1,6 +1,8 @@
 from unittest import TestCase
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from app_config import auth_settings
+from app_config import auth_settings, runtime_environment
 
 
 class AppConfigTests(TestCase):
@@ -13,6 +15,39 @@ class AppConfigTests(TestCase):
         settings = auth_settings({"RENDER_EXTERNAL_URL": "https://lilla-kulturklubben.onrender.com/"})
         self.assertEqual(settings["GOOGLE_REDIRECT_URI"], "https://lilla-kulturklubben.onrender.com/auth/google/callback")
         self.assertTrue(settings["SESSION_COOKIE_SECURE"])
+
+    def test_same_shared_values_work_locally_and_on_render(self):
+        shared = {"SECRET_KEY": "test-only-secret", "GOOGLE_CLIENT_ID": "test-client",
+                  "GOOGLE_CLIENT_SECRET": "test-secret", "CLUB_MEMBERS": "member@example.com",
+                  "PUBLIC_BASE_URL": "", "GOOGLE_REDIRECT_URI": "", "SESSION_COOKIE_SECURE": ""}
+        local = auth_settings(shared)
+        hosted = auth_settings({**shared, "RENDER": "true", "RENDER_EXTERNAL_URL": "https://club.onrender.com"})
+        self.assertEqual(local["GOOGLE_REDIRECT_URI"], "http://127.0.0.1:5000/auth/google/callback")
+        self.assertFalse(local["SESSION_COOKIE_SECURE"])
+        self.assertEqual(hosted["GOOGLE_REDIRECT_URI"], "https://club.onrender.com/auth/google/callback")
+        self.assertTrue(hosted["SESSION_COOKIE_SECURE"])
+        for key in ("SECRET_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CLUB_MEMBERS"):
+            self.assertEqual(local[key], hosted[key])
+
+    def test_imported_legacy_local_settings_do_not_break_render(self):
+        settings = auth_settings({"RENDER": "true", "RENDER_EXTERNAL_URL": "https://club.onrender.com",
+                                  "PUBLIC_BASE_URL": "http://127.0.0.1:5000",
+                                  "GOOGLE_REDIRECT_URI": "http://127.0.0.1:5000/auth/google/callback",
+                                  "SESSION_COOKIE_SECURE": "false"})
+        self.assertEqual(settings["GOOGLE_REDIRECT_URI"], "https://club.onrender.com/auth/google/callback")
+        self.assertTrue(settings["SESSION_COOKIE_SECURE"])
+
+    def test_dotenv_is_used_only_locally_and_environment_has_priority(self):
+        with TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env"
+            env_file.write_text("GOOGLE_CLIENT_ID=local-test-client\nCLUB_MEMBERS=member@example.com\n", encoding="utf-8")
+            local = runtime_environment({}, env_file)
+            self.assertEqual(local["GOOGLE_CLIENT_ID"], "local-test-client")
+            explicit = runtime_environment({"GOOGLE_CLIENT_ID": "explicit-test-client"}, env_file)
+            self.assertEqual(explicit["GOOGLE_CLIENT_ID"], "explicit-test-client")
+            hosted = runtime_environment({"RENDER": "true", "GOOGLE_CLIENT_ID": "render-test-client"}, env_file)
+            self.assertEqual(hosted["GOOGLE_CLIENT_ID"], "render-test-client")
+            self.assertNotIn("CLUB_MEMBERS", hosted)
 
     def test_localhost_cookie_default_and_explicit_override(self):
         settings = auth_settings({"PUBLIC_BASE_URL": "http://localhost:5000"})

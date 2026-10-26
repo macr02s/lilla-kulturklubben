@@ -67,9 +67,10 @@ I en ny installation: kopiera `.env.example` till `.env` och generera en egen
    ```dotenv
    GOOGLE_CLIENT_ID=klient-id-fran-google
    GOOGLE_CLIENT_SECRET=klienthemlighet-fran-google
-   GOOGLE_REDIRECT_URI=http://127.0.0.1:5000/auth/google/callback
+   PUBLIC_BASE_URL=
+   GOOGLE_REDIRECT_URI=
    CLUB_MEMBERS=medlem1@gmail.com,medlem2@gmail.com,medlem3@example.com
-   SESSION_COOKIE_SECURE=false
+   SESSION_COOKIE_SECURE=
    ```
 
    Ange alla sex medlemmarnas faktiska Google-kontoadresser i `CLUB_MEMBERS`.
@@ -139,12 +140,13 @@ Googles instruktioner: [dela kalender](https://support.google.com/calendar/answe
 
 ### Vid publicering
 
-Sätt en exakt HTTPS-callback för den riktiga domänen i både Google och
-`GOOGLE_REDIRECT_URI`, till exempel `https://din-doman.se/auth/google/callback`.
-Sätt `SESSION_COOKIE_SECURE=true`, behåll en stabil hemlig `SECRET_KEY` och
-använd `FLASK_DEBUG=0`. Lägg samma variabler i driftplattformens hemliga
-miljöinställningar om `.env` inte används där. Servermiljövariabler har företräde
-framför `.env`. Ge `instance/` beständig, skrivbar lagring och använd samma
+Registrera en exakt HTTPS-callback för den riktiga domänen i Google,
+till exempel `https://din-doman.se/auth/google/callback`. På Render räknar
+appen ut sin adress automatiskt. Vid egen domän anger du `PUBLIC_BASE_URL`.
+HTTPS använder alltid säkra sessionskakor. Behåll en stabil hemlig `SECRET_KEY`
+och använd `FLASK_DEBUG=0`. Render läser enbart tjänstens miljöinställningar;
+den lokala `.env`-filen läses bara på datorn. Lokalt har systemets miljövariabler
+företräde framför `.env`. Ge `instance/` beständig, skrivbar lagring och använd samma
 databas för alla appens processer på servern.
 
 Den riktiga Google-inloggningen behöver provas med era egna klientuppgifter.
@@ -162,16 +164,31 @@ från projektets repository och använd:
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4`
 
-Lägg in följande under tjänstens **Environment**. `.env.render.example` är
-en referensfil; den laddas inte automatiskt och ska inte innehålla riktiga hemligheter.
+En privat `.env.render` är förberedd med uppgifterna från din lokala `.env`.
+Den är undantagen från Git och innehåller hemligheter: dela den inte och
+lägg den inte bland webbplatsens statiska filer.
+
+Gör följande en gång i Render:
+
+1. Öppna din befintliga Web Service → **Environment**.
+2. Välj **Add from .env** och importera innehållet från `.env.render` direkt där.
+   Uppdatera befintliga värden om samma nycklar redan finns.
+3. Välj **Save, rebuild, and deploy** så att både ny kod och miljövärden används.
+
+Filen importeras till Render manuellt, inte genom Git. Om du ändrar Google-
+uppgifter eller medlemslista senare behöver motsvarande Render-värden uppdateras.
+`.env.render.example` är en tom, delbar referensfil utan hemligheter.
+
+Inställningarna som används är:
 
 | Variabel | Värde |
 | --- | --- |
-| `PUBLIC_BASE_URL` | `https://lilla-kulturklubben.onrender.com` |
+| `PUBLIC_BASE_URL` | Tomt för automatisk Render-adress; fyll i vid egen domän |
 | `GOOGLE_CLIENT_ID` | Klient-ID från Google |
 | `GOOGLE_CLIENT_SECRET` | Klienthemligheten från Google |
 | `SECRET_KEY` | En slumpgenererad, stabil hemlig nyckel |
 | `CLUB_MEMBERS` | Era sex Google-kontoadresser, separerade med kommatecken |
+| `CLUB_CALENDAR_ID` | Kalenderns ID, samma som lokalt |
 | `SESSION_COOKIE_SECURE` | `true` |
 | `FLASK_DEBUG` | `0` |
 
@@ -183,14 +200,14 @@ https://lilla-kulturklubben.onrender.com/auth/google/callback
 
 Den lokala callback-adressen kan också finnas kvar i samma Google-klient.
 För att kunna växla mellan lokal körning och Render ska båda adresserna vara
-registrerade samtidigt. Din lokala `.env` använder `http://127.0.0.1:5000`
-som `PUBLIC_BASE_URL`, medan Render har sin egen miljöinställning för samma
-variabel. Ingen kodändring behövs när du växlar miljö. Appen tillåter vanliga
-HTTP-sessionskakor som standard endast för lokal HTTP-körning på loopback;
-HTTPS använder säkra kakor. En uttrycklig `SESSION_COOKIE_SECURE` har företräde.
-Lämna `GOOGLE_REDIRECT_URI` tom eller ta bort den i Render om den redan är satt
-till en annan adress. Appen skapar callbacken från `PUBLIC_BASE_URL`.
-Om även den är tom används Renders automatiska `RENDER_EXTERNAL_URL`.
+registrerade samtidigt. Lämna `PUBLIC_BASE_URL`, `GOOGLE_REDIRECT_URI` och
+`SESSION_COOKIE_SECURE` tomma i den lokala `.env`. Appen väljer
+`http://127.0.0.1:5000` på datorn och HTTPS via Renders `RENDER_EXTERNAL_URL`
+på Render. Ingen kodändring behövs när du växlar miljö. En eventuell gammal
+lokal HTTP-adress i Renders inställningar ignoreras till förmån för Render-adressen.
+En explicit HTTPS-adress används fortfarande, så att egen domän kan väljas.
+HTTPS använder alltid säkra kakor, även om `false` råkat importeras från en
+gammal lokal konfiguration.
 Miljöinställningarna behöver sparas och tjänsten startas om/publiceras på nytt.
 
 Render har ett tillfälligt filsystem som standard. För nuvarande SQLite-lösning
