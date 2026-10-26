@@ -1,5 +1,13 @@
 <header class="wrap site-header{% if club_member %} site-header--signed-in{% endif %}">
-  <a class="brand brand--image" href="{{ url_for('home') }}"><img src="{{ url_for('static', filename='lilla-kulturklubben-logo-320px.webp') }}" alt="Lilla kulturklubben – startsida" width="320" height="180"></a>
+  <div class="header-brand">
+    <a class="brand brand--image" href="{{ url_for('home') }}"><img src="{{ url_for('static', filename='lilla-kulturklubben-logo-320px.webp') }}" alt="Lilla kulturklubben – startsida" width="320" height="180"></a>
+    {% if club_member %}
+    <form action="{{ url_for('club.logout') }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ logout_csrf }}">
+      <button type="submit" class="filter-button button--small header-logout">Logga ut</button>
+    </form>
+    {% endif %}
+  </div>
   <div class="header-right">
     <nav aria-label="Huvudmeny">
       <a href="{{ url_for('home') }}#evenemang">Evenemang</a>
@@ -7,11 +15,7 @@
     </nav>
     {% if club_member %}
     <div class="header-account">
-      <span class="header-status" title="{{ club_member.email }}"><span class="status-dot" aria-hidden="true"></span><span>Inloggad<small>{{ club_member.name }}</small></span></span>
-      <form action="{{ url_for('club.logout') }}" method="post">
-        <input type="hidden" name="csrf_token" value="{{ logout_csrf }}">
-        <button type="submit" class="filter-button button--small header-logout">Logga ut</button>
-      </form>
+      <span class="header-status" title="Inloggad: {{ club_member.name }} ({{ club_member.email }})"><span class="status-dot" aria-hidden="true"></span><span class="header-status-text">Inloggad: <span class="header-name">{{ club_member.name }}</span></span></span>
     </div>
     {% endif %}
   </div>
