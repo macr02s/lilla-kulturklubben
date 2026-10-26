@@ -105,6 +105,28 @@ def billetto_raw():
 
 
 class BillettoEventsTests(TestCase):
+    def test_live_payload_field_names_and_categories(self):
+        data=billetto_raw()
+        data['location']['location_name']='Actual venue'
+        data['location'].pop('name')
+        data['categorization']={'category':'performing_arts','category_localized':'Scen- & Bildkonst',
+                                'subcategory':'literary_arts','subcategory_localized':'Literature'}
+        event=billetto.normalize(data)
+        self.assertEqual(event['venue'],'Actual venue')
+        self.assertEqual(event['genre'],'Literature')
+        self.assertEqual(combined.normalize(event,'Billetto')['category_id'],'stage')
+
+    @patch.object(billetto.requests,'get')
+    def test_live_list_pagination_uses_after_id_cursor(self, get):
+        get.return_value.status_code=200;get.return_value.content=b'{}'
+        second=billetto_raw();second['id']='456'
+        get.return_value.json.side_effect=[{'data':[billetto_raw()],'has_more':True,'total':2},
+                                          {'data':[second],'has_more':False,'total':2}]
+        data=billetto.get_catalog('test-key:test-secret')
+        self.assertEqual(len(data['events']),2)
+        self.assertEqual(get.call_args.kwargs['params'],{'limit':100,'region':'Stockholm','after':'123'})
+        self.assertEqual(get.call_args.args[0],billetto.API)
+
     def test_timezone_preserved_tracking_and_no_hotlinking_banner(self):
         result=billetto.normalize(billetto_raw())
         self.assertEqual(result['start'],'2027-04-01')

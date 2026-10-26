@@ -40,13 +40,14 @@ def normalize(raw):
     url, start, end = event_url(raw.get("url")), _local(raw.get("startdate")), _local(raw.get("enddate"))
     if not url or not start or not raw.get("title"):
         return None
-    categorisation = raw.get("categorisation") or {}
-    category = categorisation.get("category") or ""
+    categorisation = raw.get("categorization") or raw.get("categorisation") or {}
+    category = categorisation.get("category_localized") or categorisation.get("category") or ""
     if isinstance(category, dict):
         category = category.get("name") or ""
     return {"id": str(raw.get("id") or url), "title": raw["title"], "url": url,
             "image": "", "alt": raw["title"], "credit": "",  # Publisher banners require rehosting.
-            "category": category or "Övrigt", "venue": location.get("name") or "",
+            "category": category or "Övrigt", "venue": location.get("location_name") or location.get("name") or "",
+            "genre": categorisation.get("subcategory_localized") or categorisation.get("subcategory") or "",
             "city": "Stockholm", "start": start.date().isoformat(),
             "end": (end or start).date().isoformat(), "time": start.strftime("%H:%M")}
 
@@ -54,13 +55,15 @@ def normalize(raw):
 def get_catalog(keypair, start_date="", end_date=""):
     if not keypair or ":" not in keypair or any(not part.strip() for part in keypair.split(":", 1)):
         raise SourceUnavailable()
-    url, params = API, {"limit": 100, "subregion": "SE110"}
+    base_params = {"limit": 100, "region": "Stockholm"}
+    url, params = API, dict(base_params)
     items, visited = [], set()
     try:
         for page in range(10):
-            if url in visited:
+            request_key = (url, tuple(sorted((params or {}).items())))
+            if request_key in visited:
                 raise SourceUnavailable()
-            visited.add(url)
+            visited.add(request_key)
             response = requests.get(url, params=params, headers={"Api-Keypair": keypair},
                                     timeout=(5, 15), allow_redirects=False)
             if response.status_code != 200 or len(response.content) > 8_000_000:
@@ -73,6 +76,14 @@ def get_catalog(keypair, start_date="", end_date=""):
             pagination = raw.get("pagination") or raw
             if not pagination.get("has_more"):
                 return {"events": items, "truncated": False}
+            if not pagination.get("next_url"):
+                # The live public API returns a list with has_more and an `after` ID cursor.
+                entries = raw["data"]
+                last_id = str(entries[-1].get("id") or "") if entries else ""
+                if not last_id or len(last_id) > 200:
+                    raise SourceUnavailable()
+                url, params = API, {**base_params, "after": last_id}
+                continue
             next_url = urljoin(API, pagination.get("next_url") or "")
             parts = urlsplit(next_url)
             # Never forward credentials to a next-page host supplied by an API response.

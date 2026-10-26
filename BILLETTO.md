@@ -63,8 +63,10 @@ poster). Om en källa faller bort visas övrigas utbud med en markering och
 ett nytt försök tillåts efter en minut. Vid totalt avbrott kan en sparad
 katalog visas upp till en timme med markering. Högst 1 000 poster per källa
 hämtas; ett begränsat urval markeras. Stora utbud kan därför vara
-ofullständiga. Billetto avgränsas först till Stockholms län, NUTS3
-SE110, och sedan till staden Stockholm.
+ofullständiga. Billetto avgränsas först med det verifierade filtret `region=Stockholm`
+och sedan till staden Stockholm. API:t tar regionnamn, inte NUTS-kod, i
+det verifierade svenska anropet. Listans `has_more` och sista evenemangets
+ID används för nästa anrop med `after=ID`.
 
 Billetto-datum konverteras till Europe/Stockholm med tidszonsdatabasen,
 inklusive sommartid. Billetto-bilder används inte ännu, eftersom deras
@@ -78,8 +80,12 @@ Billetto-evenemang.
 Adaptern använder det dokumenterade svenska public-events-anropet och
 skickar `Api-Keypair` enbart till fast angiven Billetto-host. Omdirigeringar
 följs inte. Nästa-sida-länkar måste ha samma host och API-sökväg.
-Billetto-adaptern har tester med simulerade API-svar men är ännu inte
-verifierad med verkliga publiceringsuppgifter.
+Billetto-adaptern är verifierad med verklig Public Event Search-åtkomst,
+Stockholm-filter, hela sidbläddringen och det gemensamma flödet. Det verkliga
+svaret använder `location.location_name` och `categorization`, vilka
+stöds tillsammans med dokumentationens tidigare fältnamn. Saknat platsnamn
+gör att en post inte matchas mot en annan källas post, även när staden är
+bekräftad. Billetto-bilder är fortfarande inte aktiverade.
 
 Källor: [offentliga evenemang](https://api.billetto.com/reference/list-public-events),
 [publiceringskrav](https://api.billetto.com/docs/requirements),

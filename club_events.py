@@ -32,7 +32,7 @@ def text_key(value):
 def category_id(label):
     key = text_key(label)
     for category, words in {
-        "music": {"music", "musik"}, "stage": {"scenkonst", "scen film", "arts theatre", "film", "theatre", "comedy"},
+        "music": {"music", "musik"}, "stage": {"scenkonst", "scen film", "arts theatre", "film", "theatre", "comedy", "scen bildkonst", "performing arts"},
         "art": {"utstallningar", "exhibitions", "art"}, "sport": {"sport", "sports", "sport halsa"},
         "food": {"mat dryck", "food drink"}, "family": {"familj", "family"},
     }.items():
