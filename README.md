@@ -69,6 +69,12 @@ Vid avbrott kan tidigare hämtade uppgifter visas i upp till en timme med en
 tydlig markering. Utan nyckel visas ett fel i evenemangsdelen; resten av
 webbplatsen fungerar. Anpassningen finns i `ticketmaster_events.py`.
 
+## Gemensamt flöde på medlemssidan
+
+På `/klubben` samlas anslutna källor med Stockholm-filter och konservativ
+dubblettkontroll. Se [Billetto och gemensam evenemangskatalog](BILLETTO.md)
+för nycklar, matchningsregler, begränsningar och framtida adaptrar.
+
 ## Kontroller
 
 ```powershell

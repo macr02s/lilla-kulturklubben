@@ -3,16 +3,19 @@ from functools import wraps
 from hmac import compare_digest
 from pathlib import Path
 import secrets
+import re
 import sqlite3
 from urllib.parse import urlencode, urlsplit
 
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
 from flask import (Blueprint, abort, current_app, g, redirect, render_template,
-                   request, session, url_for)
+                   request, session, url_for, jsonify)
 from joserfc.errors import JoseError
 from requests.exceptions import RequestException
 from club_database import DatabaseUnavailable, open_database
+from event_months import month_range
+import club_events
 
 club = Blueprint("club", __name__)
 
@@ -85,6 +88,25 @@ def member_required(view):
             return redirect(url_for("club.index"))
         return view(*args, **kwargs)
     return protected
+
+
+@club.get("/klubben/evenemang")
+@member_required
+def combined_events():
+    category = request.args.get("category", "")
+    subcategory = request.args.get("subcategory", "")
+    page = request.args.get("page", "1")
+    try:
+        start, end = month_range(request.args.get("from_month", ""), request.args.get("to_month", ""))
+        if (any(v and not re.fullmatch(r"[a-z0-9-]{1,80}", v) for v in (category, subcategory))
+                or len(page) > 4 or not page.isascii() or not page.isdecimal() or not 1 <= int(page) <= 1000):
+            raise ValueError()
+    except ValueError:
+        return jsonify(error="Kontrollera kategori, sida och månadsperiod."), 400
+    try:
+        return jsonify(club_events.get_events(current_app.config, category, subcategory, int(page), start, end))
+    except club_events.SourceUnavailable:
+        return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
 
 
 @club.get("/klubben")

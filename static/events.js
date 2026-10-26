@@ -91,7 +91,8 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     const start = date(event.start), end = date(event.end);
     body.append(node('p', start + (end && end !== start ? ' – ' + end : '') + (event.time ? ' · ' + event.time : ''), 'event-date'));
     if (event.venue) body.append(node('p', event.venue));
-    body.append(node('span', `Läs mer hos ${sourceName} ↗`, 'event-read-more'));
+    if (event.sources?.length > 1) body.append(node('p', 'Hittad hos ' + event.sources.join(' · '), 'event-provenance'));
+    body.append(node('span', `Läs mer hos ${event.link_source || sourceName} ↗`, 'event-read-more'));
     link.append(body);
     return link;
   }
@@ -136,9 +137,12 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
       if (data.truncated) status.textContent += ' · Urval av de närmaste evenemangen.';
       if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';
+      if (data.unavailable_sources?.length) status.textContent += ' · Tillfälligt saknas utbud från ' + data.unavailable_sources.join(', ') + '.';
     } catch (error) {
       if (current !== controller) return;
-      status.textContent = `Evenemangen kunde inte hämtas just nu. Försök igen eller besök ${sourceName} via länken ovan.`;
+      status.textContent = section.querySelector('.section-title .text-link') ?
+        `Evenemangen kunde inte hämtas just nu. Försök igen eller besök ${sourceName} via länken ovan.` :
+        'Evenemangen kunde inte hämtas just nu. Försök igen om en stund.';
       retry.hidden = false;
       more.hidden = true;
     } finally {

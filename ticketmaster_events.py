@@ -105,7 +105,7 @@ def _catalog(api_key, start_date="", end_date=""):
         "truncated": total_pages > 5, "updated": datetime.now(timezone.utc).isoformat()}
 
 
-def get_events(api_key, category="", subcategory="", page=1, start_date="", end_date=""):
+def get_events(api_key, category="", subcategory="", page=1, start_date="", end_date="", page_size=9):
     if not api_key:
         raise SourceUnavailable()
     key = sha256(api_key.encode()).hexdigest()
@@ -130,7 +130,7 @@ def get_events(api_key, category="", subcategory="", page=1, start_date="", end_
                     _cache.popitem(last=False)
         items = [e for e in catalog["events"] if (not category or e["category_id"] == category)
                  and (not subcategory or e["genre_id"] == subcategory)]
-        offset = (page - 1) * 9
-        return deepcopy({"events": items[offset:offset + 9], "categories": catalog["categories"],
-                         "count": len(items), "page": page, "next": page + 1 if offset + 9 < len(items) else None,
+        offset = (page - 1) * page_size
+        return deepcopy({"events": items[offset:offset + page_size], "categories": catalog["categories"],
+                         "count": len(items), "page": page, "next": page + 1 if offset + page_size < len(items) else None,
                          "stale": stale, "truncated": catalog["truncated"], "updated": catalog["updated"]})

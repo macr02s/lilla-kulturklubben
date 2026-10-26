@@ -43,17 +43,19 @@ def _fetch(params):
     return json.loads(body)
 
 
-def get_events(category="", subcategory="", page=1, start_date="", end_date=""):
+def get_events(category="", subcategory="", page=1, start_date="", end_date="", page_size=9):
     key = (category, subcategory, page)
     if start_date or end_date:
         key += (start_date, end_date)
+    if page_size != 9:
+        key += (page_size,)
     # Serialize cache fills to avoid sending duplicate requests under load.
     with _lock:
         cached = _cache.get(key)
         if cached and monotonic() - cached[0] < TTL:
             _cache.move_to_end(key)
             return deepcopy(cached[1])
-        params = {"page": page, "size": 9}
+        params = {"page": page, "size": page_size}
         if start_date:
             params.update(date_from=start_date, date_to=end_date)
         if category:
@@ -74,12 +76,14 @@ def get_events(category="", subcategory="", page=1, start_date="", end_date=""):
                     continue
                 image = event.get("image") or {}
                 thumbnail = image.get("renditions", {}).get("small", {})
-                items.append({"title": event["title"], "url": href,
+                items.append({"id": str(event.get("id") or href), "title": event["title"], "url": href,
                               "image": source_url(thumbnail.get("src")),
                               "alt": image.get("alt") or "",
                               "credit": image.get("caption") or "",
                               "category": (event.get("category") or {}).get("title", ""),
                               "venue": event.get("venue_name") or "",
+                              "city": event.get("city") or "",
+                              "genre": (event.get("subcategory") or {}).get("title", "") if isinstance(event.get("subcategory"), dict) else "",
                               "start": event.get("start_date"), "end": event.get("end_date")})
             next_page = raw.get("next")
             data = {"categories": categories, "events": items, "count": raw["count"],

@@ -16,6 +16,7 @@ mimetypes.add_type("image/webp", ".webp")
 app = Flask(__name__)
 app.config.update(auth_settings(runtime_env))
 app.config["TICKETMASTER_API_KEY"] = runtime_env.get("TICKETMASTER_API_KEY", "").strip()
+app.config["BILLETTO_API_KEYPAIR"] = runtime_env.get("BILLETTO_API_KEYPAIR", "").strip()
 init_auth(app)
 init_banking(app)
 
