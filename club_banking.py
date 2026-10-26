@@ -151,6 +151,7 @@ def connect():
         return redirect(url_for("club.index") + "#klubbkassan")
 
 
+@bank.get("/callback")
 @bank.get("/bank/callback")
 @member_required
 def callback():

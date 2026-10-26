@@ -77,6 +77,17 @@ class AppConfigTests(TestCase):
     def test_persistent_database_path_is_configurable(self):
         self.assertEqual(auth_settings({"CLUB_DATABASE": "/var/data/club.sqlite3"})["CLUB_DATABASE"], "/var/data/club.sqlite3")
 
+    def test_production_bank_callback_uses_registered_path_in_both_environments(self):
+        settings = auth_settings({"ENABLE_BANKING_CALLBACK_PATH":"/callback"})
+        self.assertEqual(settings["ENABLE_BANKING_REDIRECT_URI"],"http://127.0.0.1:5000/callback")
+        settings = auth_settings({"RENDER_EXTERNAL_URL":"https://lilla-kulturklubben.onrender.com",
+                                  "ENABLE_BANKING_CALLBACK_PATH":"/callback"})
+        self.assertEqual(settings["ENABLE_BANKING_REDIRECT_URI"],"https://lilla-kulturklubben.onrender.com/callback")
+
+    def test_bank_callback_path_cannot_redirect_to_another_origin(self):
+        with self.assertRaises(ValueError):
+            auth_settings({"ENABLE_BANKING_CALLBACK_PATH":"https://evil.example/callback"})
+
     def test_invalid_public_addresses_fail_closed(self):
         for base in ("http://club.example", "https://club.example/path", "https://user@club.example",
                      "https://club.example?next=evil", "//club.example", "https://club.example#hash"):

@@ -1,4 +1,4 @@
-"""Step 2: verify Enable Banking sandbox access without accessing bank accounts.
+"""Verify the configured Enable Banking application without accessing bank accounts.
 
 Run: python banking_check.py
 """
@@ -67,13 +67,15 @@ def get_json(path, headers, params=None):
     return data
 
 
-def check_sandbox(environ):
+def check_application(environ, expected_environment):
+    if expected_environment not in {"SANDBOX", "PRODUCTION"}:
+        raise BankingCheckError("ENABLE_BANKING_ENVIRONMENT ska vara SANDBOX eller PRODUCTION.")
     headers = authorization(environ)
     application = get_json("/application", headers)
-    if application.get("environment") != "SANDBOX":
-        raise BankingCheckError("Applikationen är inte registrerad i Sandbox. Använd uppgifterna för Sandbox-applikationen.")
+    if application.get("environment") != expected_environment:
+        raise BankingCheckError("Applikationens miljö stämmer inte med vald miljö. Kontrollera Application ID, PEM-fil och ENABLE_BANKING_ENVIRONMENT.")
     if application.get("active") is not True:
-        raise BankingCheckError("Sandbox-applikationen är inte aktiv hos Enable Banking.")
+        raise BankingCheckError("Applikationen är inte aktiv hos Enable Banking.")
     banks = get_json("/aspsps", headers, params={"country": "SE"})
     items = banks.get("aspsps")
     if not isinstance(items, list):
@@ -84,14 +86,19 @@ def check_sandbox(environ):
     return names
 
 
+def check_sandbox(environ):
+    return check_application(environ, "SANDBOX")
+
+
 def main():
     environ = runtime_environment(os.environ, ROOT / ".env")
+    environment = environ.get("ENABLE_BANKING_ENVIRONMENT", "SANDBOX").strip().upper() or "SANDBOX"
     try:
-        names = check_sandbox(environ)
+        names = check_application(environ, environment)
     except BankingCheckError as error:
         print(error)
         return 1
-    print("OK: anslutningen fungerar och applikationen är aktiv i Sandbox.")
+    print(f"OK: anslutningen fungerar och applikationen är aktiv i {environment}.")
     print(f"Tillgängliga bankalternativ för Sverige: {len(names)}")
     for name in names:
         print("- " + name)

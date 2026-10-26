@@ -146,6 +146,74 @@ nyckel, aktiverad åtkomst hos Enable Banking samt godkännande från banken.
 Att enbart ändra miljövariabeln gör inte sandbox-nyckeln till en produktionsnyckel.
 Appen kontrollerar att API-applikationens faktiska miljö stämmer innan anslutningen startas.
 
+### Anslut ett riktigt Nordea-konto
+
+Saldoflödet är redan implementerat i det befintliga Flask-projektet. Ingen
+ny `app.py` behöver byggas. De befintliga adresserna är:
+
+- `POST /klubben/bank/anslut`: kontoägaren startar bankens godkännande.
+- `GET /callback` eller `/bank/callback`: callbacken byter godkännandekod mot en banksession.
+- `POST /klubben/bank/valj-konto`: ägaren väljer och bekräftar klubbkontot.
+- `GET /klubben/bank/saldo`: godkända medlemmar ser saldot på det valda kontot.
+
+Lägg produktionens nya PEM-fil i `secrets/`, gärna med sitt ursprungliga
+UUID-filnamn för att hålla isär den från sandbox-nyckeln. Konfigurera sedan:
+
+```dotenv
+ENABLE_BANKING_APPLICATION_ID=produktionens-application-id
+ENABLE_BANKING_PRIVATE_KEY_PATH=secrets/produktionens-application-id.pem
+ENABLE_BANKING_ENVIRONMENT=PRODUCTION
+ENABLE_BANKING_CALLBACK_PATH=/callback
+```
+
+Detta projekt använder `ENABLE_BANKING_APPLICATION_ID` och
+`ENABLE_BANKING_PRIVATE_KEY_PATH`, inte `ENABLEBANKING_APP_ID` eller
+`ENABLEBANKING_PRIVATE_KEY`. Nyckeln läses från en serverfil.
+
+1. Kontrollera att produktionsappen är aktiv och att klubbens verkliga konto
+   är tillåtet för appen hos Enable Banking. En kontrollpanelkoppling ersätter
+   inte bankauktoriseringen som webbplatsen behöver genomföra.
+2. Registrera rätt callback-adresser även i **produktionsappen**.
+   Registrering i sandbox-appen gäller inte automatiskt för produktionsappen.
+3. Kör `python banking_check.py` för att verifiera att ID och nyckel hör till
+   en aktiv **PRODUCTION**-app. Denna kontroll läser bara app- och bankmetadata.
+4. På Render: byt `ENABLE_BANKING_APPLICATION_ID` till produktionsappens ID,
+   byt Secret File `enablebanking.pem` till den nya produktionsnyckeln och
+   sätt `ENABLE_BANKING_ENVIRONMENT=PRODUCTION`. Behåll den säkra sökvägen
+   `/etc/secrets/enablebanking.pem`, kontoägarens adress och krypteringsnyckeln.
+5. Efter publicering: logga in som kontoägaren, välj **Anslut / förnya Nordea**,
+   godkänn bankåtkomsten och välj det riktiga klubbkontot innan saldot delas.
+
+IBAN hårdkodas inte i koden. Appen använder det interna konto-ID som lämnas
+efter bankens godkännande. En tidigare sandbox-session kan inte användas som
+produktionssession; en ny bankauktorisering och ett nytt kontoval krävs.
+
+### Den verifierade produktionskonfigurationen
+
+Den nya produktionsnyckeln har verifierats mot API:t: appen är aktiv och
+har Account Information-tillgång. `.env` och den privata `.env.render` har
+uppdaterats till den nya appen och `PRODUCTION`. Befintliga Google- och
+krypteringsnycklar har behållits.
+
+Produktionsappen har för närvarande följande callback registrerad:
+
+```text
+https://lilla-kulturklubben.onrender.com/callback
+```
+
+Därför används `ENABLE_BANKING_CALLBACK_PATH=/callback`. För lokal
+bankauktorisering behöver även denna adress registreras i produktionsappen:
+
+```text
+http://127.0.0.1:5000/callback
+```
+
+På Render: importera de uppdaterade miljövärdena från `.env.render` och ersätt
+innehållet i Secret File `enablebanking.pem` med **produktionens** PEM-fil.
+Behåll filnamnet på Render så att `/etc/secrets/enablebanking.pem` fortfarande
+stämmer. Koden och inställningarna behöver publiceras innan banken kan anslutas.
+API-kontrollen skapade ingen banksession och hämtade inga kontouppgifter.
+
 Officiell dokumentation:
 [Quick Start](https://enablebanking.com/docs/api/quick-start/),
 [API reference](https://enablebanking.com/docs/api/reference/).

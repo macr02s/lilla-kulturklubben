@@ -8,7 +8,7 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from banking_check import BankingCheckError, authorization, check_sandbox
+from banking_check import BankingCheckError, authorization, check_application, check_sandbox
 
 
 class BankingCheckTests(TestCase):
@@ -43,6 +43,21 @@ class BankingCheckTests(TestCase):
             with self.assertRaises(BankingCheckError):
                 check_sandbox(self.config)
             self.assertEqual(get.call_count, 1)
+
+    def test_production_application_requires_explicit_production_mode(self):
+        application = Mock(status_code=200)
+        application.json.return_value = {"environment":"PRODUCTION", "active":True}
+        banks = Mock(status_code=200)
+        banks.json.return_value = {"aspsps":[{"name":"Nordea", "country":"SE"}]}
+        with patch("banking_check.requests.get",side_effect=[application,banks]) as get:
+            self.assertEqual(check_application(self.config,"PRODUCTION"),["Nordea"])
+            self.assertEqual(get.call_count,2)
+
+    def test_invalid_environment_never_sends_credentials(self):
+        with patch("banking_check.requests.get") as get:
+            with self.assertRaises(BankingCheckError):
+                check_application(self.config,"invalid")
+            get.assert_not_called()
 
     def test_sandbox_only_reads_application_and_swedish_bank_directory(self):
         application = Mock(status_code=200)

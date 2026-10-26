@@ -42,6 +42,9 @@ def auth_settings(environ):
             raise ValueError("PUBLIC_BASE_URL must be an HTTPS origin, or localhost over HTTP.")
         redirect_uri = base_url + "/auth/google/callback"
     local_http = not hosted and _loopback_http(redirect_uri)
+    bank_callback_path = environ.get("ENABLE_BANKING_CALLBACK_PATH", "/bank/callback").strip() or "/bank/callback"
+    if bank_callback_path not in {"/bank/callback", "/callback"}:
+        raise ValueError("ENABLE_BANKING_CALLBACK_PATH must be /bank/callback or /callback.")
     settings = {
         "SECRET_KEY": environ.get("SECRET_KEY"),
         "GOOGLE_CLIENT_ID": environ.get("GOOGLE_CLIENT_ID", ""),
@@ -54,7 +57,7 @@ def auth_settings(environ):
         "ENABLE_BANKING_ADMIN_EMAIL": environ.get("ENABLE_BANKING_ADMIN_EMAIL", "").strip().casefold(),
         "ENABLE_BANKING_ENCRYPTION_KEY": environ.get("ENABLE_BANKING_ENCRYPTION_KEY", "").strip(),
         "ENABLE_BANKING_ENVIRONMENT": environ.get("ENABLE_BANKING_ENVIRONMENT", "SANDBOX").strip().upper() or "SANDBOX",
-        "ENABLE_BANKING_REDIRECT_URI": redirect_uri.rsplit("/auth/google/callback", 1)[0] + "/bank/callback",
+        "ENABLE_BANKING_REDIRECT_URI": redirect_uri.rsplit("/auth/google/callback", 1)[0] + bank_callback_path,
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
         "SESSION_COOKIE_SECURE": not local_http or environ.get("SESSION_COOKIE_SECURE", "").lower() == "true",

@@ -93,6 +93,12 @@ class ClubBankingTests(TestCase):
             self.assertEqual(response.status_code,400)
             api.assert_not_called()
 
+    def test_production_callback_alias_uses_the_same_state_protection(self):
+        self.login()
+        with patch('club_banking.api') as api:
+            self.assertEqual(self.client.get('/callback?state=wrong&code=fake').status_code,400)
+            api.assert_not_called()
+
     def test_callback_consumes_state_once_and_encrypts_session(self):
         self.login()
         state='test-state'
