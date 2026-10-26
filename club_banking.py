@@ -115,6 +115,20 @@ def valid_uuid(value):
         raise BankError("Banken lämnade ett ogiltigt konto eller sessions-ID.") from None
 
 
+def trusted_authorization_url(value):
+    # Enable Banking is migrating from tilisy to auth; both exact hosts are valid.
+    if not isinstance(value, str) or any(ord(char) <= 32 or ord(char) == 127 for char in value) or "\\" in value:
+        return False
+    try:
+        destination = urlsplit(value)
+        return (destination.scheme == "https"
+                and destination.hostname in {"auth.enablebanking.com", "tilisy.enablebanking.com"}
+                and destination.port in {None, 443}
+                and not destination.username and not destination.password)
+    except ValueError:
+        return False
+
+
 @bank.post("/klubben/bank/anslut")
 @member_required
 def connect():
@@ -136,8 +150,7 @@ def connect():
             "aspsp": {"name": "Nordea", "country": "SE"}, "psu_type": "personal",
             "state": state, "redirect_url": callback, "language": "sv",
         })
-        destination = urlsplit(result.get("url", ""))
-        if destination.scheme != "https" or destination.netloc != "auth.enablebanking.com":
+        if not trusted_authorization_url(result.get("url", "")):
             raise BankError("Banken lämnade en oväntad inloggningsadress.")
         hashed = sha256(state.encode()).hexdigest()
         database = db()
@@ -181,12 +194,16 @@ def callback():
                     for account in data.get("accounts", []) if isinstance(account, dict)]
         if not accounts:
             raise BankError("Inga konton blev tillgängliga i bankens godkännande.")
-        save_link({"session_id": session_id, "accounts": accounts, "selected": None,
+        selected = accounts[0]["id"] if len(accounts) == 1 else None
+        save_link({"session_id": session_id, "accounts": accounts, "selected": selected,
                    "application_id": current_app.config["ENABLE_BANKING_APPLICATION_ID"],
                    "environment": current_app.config["ENABLE_BANKING_ENVIRONMENT"],
                    "admin_email": current_member()["email"],
                    "valid_until": (data.get("access") or {}).get("valid_until")})
-        flash("Banken är ansluten. Välj nu vilket konto som ska visas för klubbens medlemmar.", "bank")
+        if selected:
+            flash("Banken är ansluten. Ditt enda konto är valt och saldot visas för klubbens godkända medlemmar.", "bank")
+        else:
+            flash("Banken är ansluten och lämnade flera konton. Välj vilket konto som ska visas för klubbens medlemmar.", "bank")
     except BankError as error:
         flash(str(error), "bank")
     return redirect(url_for("club.index") + "#klubbkassan")

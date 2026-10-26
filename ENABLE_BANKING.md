@@ -83,7 +83,9 @@ Render-instruktioner: [Secret Files](https://render.com/docs/configure-environme
 Saldodelen finns på `/klubben` för alla godkända medlemmar, enligt kontoägarens
 uttryckliga godkännande. Endast kontoägaren i `ENABLE_BANKING_ADMIN_EMAIL` får
 ansluta banken och välja konto. Efter bankens godkännande måste ägaren välja
-just klubbkontot och bekräfta delningen innan någon annan kan se saldot.
+just klubbkontot och bekräfta delningen om flera konton returneras.
+Om banken returnerar exakt ett konto väljs det automatiskt enligt kontoägarens
+godkännande, och dess saldo visas för klubbens godkända medlemmar.
 Övriga konton och bankens sessions-ID lämnas inte till vanliga medlemmar.
 
 Följande inställningar har förberetts i den privata `.env` och `.env.render`:
@@ -121,8 +123,8 @@ En framtida egen domän behöver sin egen `/bank/callback` registrerad också.
 1. Registrera callback-adresserna ovan hos Enable Banking.
 2. Starta om Flask och logga in på `http://127.0.0.1:5000/klubben` som kontoägaren.
 3. Klicka **Anslut / förnya Nordea (test)** och följ sandboxens godkännande.
-4. Efter återkomsten väljer du klubbens konto bland de godkända kontona och
-   bekräftar att dess saldo ska visas för alla godkända medlemmar.
+4. Om banken lämnar ett enda konto väljs det automatiskt. Om flera konton
+   lämnas väljer du klubbens konto och bekräftar delningen med medlemmarna.
 5. Sidan hämtar kontots saldouppgifter. **Uppdatera saldo** gör ett nytt anrop.
 
 Saldot är tydligt märkt **Sandbox · testsaldo**. Tillgängligt saldo, bokfört
@@ -181,8 +183,9 @@ Detta projekt använder `ENABLE_BANKING_APPLICATION_ID` och
    byt Secret File `enablebanking.pem` till den nya produktionsnyckeln och
    sätt `ENABLE_BANKING_ENVIRONMENT=PRODUCTION`. Behåll den säkra sökvägen
    `/etc/secrets/enablebanking.pem`, kontoägarens adress och krypteringsnyckeln.
-5. Efter publicering: logga in som kontoägaren, välj **Anslut / förnya Nordea**,
-   godkänn bankåtkomsten och välj det riktiga klubbkontot innan saldot delas.
+5. Efter publicering: logga in som kontoägaren, välj **Anslut / förnya Nordea**
+   och godkänn bankåtkomsten. Ett enda konto väljs automatiskt; flera konton
+   kräver ett uttryckligt val innan något saldo delas.
 
 IBAN hårdkodas inte i koden. Appen använder det interna konto-ID som lämnas
 efter bankens godkännande. En tidigare sandbox-session kan inte användas som

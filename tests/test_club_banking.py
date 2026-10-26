@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 from flask import Flask
 
 from club_auth import bind_member, init_auth
-from club_banking import db, init_banking, load_link, save_link
+from club_banking import db, init_banking, load_link, save_link, trusted_authorization_url
 
 
 class ClubBankingTests(TestCase):
@@ -118,7 +118,7 @@ class ClubBankingTests(TestCase):
             encrypted=db().execute('SELECT encrypted FROM bank_connection').fetchone()[0]
             self.assertNotIn(self.session_id,encrypted)
             self.assertNotIn(self.account_id,encrypted)
-            self.assertIsNone(load_link()['selected'])
+            self.assertEqual(load_link()['selected'], self.account_id)
         with self.client.session_transaction() as session:
             self.assertNotIn('bank_state',session)
             self.assertNotIn('session_id',session)
@@ -168,3 +168,43 @@ class ClubBankingTests(TestCase):
         response=self.client.post('/klubben/bank/valj-konto',data={
             'csrf_token':'test-csrf','share_confirm':'yes','account_id':self.account_id})
         self.assertEqual(response.status_code,302)
+
+    def test_authorization_url_accepts_current_and_legacy_provider_hosts_only(self):
+        for url in ('https://auth.enablebanking.com/ais/start?sessionid=test',
+                    'https://tilisy.enablebanking.com/ais/start?sessionid=test'):
+            self.assertTrue(trusted_authorization_url(url))
+        for url in ('http://tilisy.enablebanking.com/start', 'https://evil.example/start',
+                    'https://auth.enablebanking.com.evil.example/start',
+                    'https://auth.enablebanking.com@evil.example/start',
+                    'https://user@auth.enablebanking.com/start',
+                    'https://auth.enablebanking.com:444/start',
+                    'https://auth.enablebanking.com/\nstart', None):
+            self.assertFalse(trusted_authorization_url(url))
+
+    def test_connect_accepts_legacy_host_and_preserves_oauth_state(self):
+        self.login()
+        metadata={'active':True,'environment':'SANDBOX','redirect_urls':[self.app.config['ENABLE_BANKING_REDIRECT_URI']]}
+        destination='https://tilisy.enablebanking.com/ais/start?sessionid=test'
+        with patch('club_banking.api',side_effect=[metadata,{'url':destination}]) as api:
+            response=self.client.post('/klubben/bank/anslut',data={'csrf_token':'test-csrf'})
+            self.assertEqual(response.location,destination)
+            state=api.call_args.args[2]['state']
+        with self.client.session_transaction() as session:
+            self.assertEqual(session['bank_state'],sha256(state.encode()).hexdigest())
+
+    def test_multiple_accounts_still_require_explicit_selection(self):
+        self.login()
+        state='multiple-accounts-state'
+        hashed=sha256(state.encode()).hexdigest()
+        with self.client.session_transaction() as session:
+            session['bank_state']=hashed
+        with self.app.app_context():
+            database=db()
+            database.execute('INSERT INTO bank_pending VALUES(?,?,?)',(hashed,'google-owner@example.com',int(time())+600))
+            database.commit()
+        response={'session_id':self.session_id,'accounts':[{'uid':self.account_id,'name':'First'},
+                                                            {'uid':str(uuid4()),'name':'Second'}]}
+        with patch('club_banking.api',return_value=response):
+            self.assertEqual(self.client.get('/callback?state='+state+'&code=test-code').status_code,302)
+        with self.app.app_context():
+            self.assertIsNone(load_link()['selected'])

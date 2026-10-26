@@ -52,7 +52,7 @@
       const data = await response.json();
       if (!response.ok || data.status === 'error') throw new Error(data.message || 'Saldot kunde inte hämtas. Försök igen senare.');
       if (data.status === 'unconfigured') status.textContent = 'Bankkopplingen är ännu inte aktiverad på servern.';
-      else if (data.status === 'disconnected') status.textContent = data.admin ? 'Anslut Nordea för att välja klubbens konto.' : 'Kontoägaren har inte anslutit klubbens konto ännu.';
+      else if (data.status === 'disconnected') status.textContent = data.admin ? 'Anslut Nordea för att hämta klubbkontots saldo.' : 'Kontoägaren har inte anslutit klubbens konto ännu.';
       else if (data.status === 'choose') {
         status.textContent = data.admin ? 'Banken är ansluten. Välj kontot som ska visas för klubben.' : 'Kontoägaren behöver välja klubbens konto innan saldot visas.';
         selectAccount(data);
