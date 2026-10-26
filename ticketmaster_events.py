@@ -37,13 +37,17 @@ def source_url(value, image=False):
         return ""
 
 
-def _fetch(api_key, page):
-    response = requests.get(API, params={
+def _fetch(api_key, page, start_date="", end_date=""):
+    params = {
         "apikey": api_key, "countryCode": "SE", "city": "Stockholm",
         "locale": "sv-se,sv,en,*",
         "sort": "date,asc", "size": PAGE_SIZE, "page": page,
         "startDateTime": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    }, timeout=(5, 15), allow_redirects=False)
+    }
+    if start_date:
+        params.pop("startDateTime")
+        params["localStartDateTime"] = start_date + "T00:00:00," + end_date + "T23:59:59"
+    response = requests.get(API, params=params, timeout=(5, 15), allow_redirects=False)
     if response.status_code != 200 or len(response.content) > 8_000_000:
         raise SourceUnavailable()
     return response.json()
@@ -74,13 +78,15 @@ def _event(raw):
             "genre": genre.get("name") or "", "genre_id": str(genre.get("id") or "").casefold()}
 
 
-def _catalog(api_key):
+def _catalog(api_key, start_date="", end_date=""):
     items, seen, total_pages = [], set(), 1
     for page in range(5):
-        raw = _fetch(api_key, page)
+        raw = _fetch(api_key, page, start_date, end_date) if start_date else _fetch(api_key, page)
         total_pages = int(raw["page"]["totalPages"])
         for entry in (raw.get("_embedded") or {}).get("events", []):
             event = _event(entry)
+            if start_date and event and (not event["start"] or not start_date <= event["start"] <= end_date):
+                continue
             if event and event["id"] not in seen:
                 seen.add(event["id"])
                 items.append(event)
@@ -99,10 +105,12 @@ def _catalog(api_key):
         "truncated": total_pages > 5, "updated": datetime.now(timezone.utc).isoformat()}
 
 
-def get_events(api_key, category="", subcategory="", page=1):
+def get_events(api_key, category="", subcategory="", page=1, start_date="", end_date=""):
     if not api_key:
         raise SourceUnavailable()
     key = sha256(api_key.encode()).hexdigest()
+    if start_date:
+        key = (key, start_date, end_date)
     stale = False
     with _lock:
         cached = _cache.get(key)
@@ -110,7 +118,7 @@ def get_events(api_key, category="", subcategory="", page=1):
             catalog = cached[1]
         else:
             try:
-                catalog = _catalog(api_key)
+                catalog = _catalog(api_key, start_date, end_date) if start_date else _catalog(api_key)
             except (requests.RequestException, SourceUnavailable, ValueError, KeyError, TypeError, AttributeError):
                 if not cached or monotonic() - cached[0] >= STALE_TTL:
                     raise SourceUnavailable() from None

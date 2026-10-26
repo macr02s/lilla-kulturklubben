@@ -1,0 +1,6 @@
+<form class="event-months" data-role="date-filter">
+  <label for="{{ month_prefix }}-from-month">Från månad<input type="month" id="{{ month_prefix }}-from-month" data-role="from-month" min="2000-01" max="2100-12" required></label>
+  <label for="{{ month_prefix }}-to-month">Till månad<input type="month" id="{{ month_prefix }}-to-month" data-role="to-month" min="2000-01" max="2100-12" required></label>
+  <button class="filter-button" type="submit">Visa perioden</button>
+  <button class="filter-button" type="button" data-role="clear-dates">Alla datum</button>
+</form>

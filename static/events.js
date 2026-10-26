@@ -6,6 +6,11 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   const more = section.querySelector('[data-role="more"]');
   const retry = section.querySelector('[data-role="retry"]');
   const sourceName = section.dataset.source;
+  const dateForm = section.querySelector('[data-role="date-filter"]');
+  const fromInput = section.querySelector('[data-role="from-month"]');
+  const toInput = section.querySelector('[data-role="to-month"]');
+  let fromMonth = '', toMonth = '';
+  let filtersNeedRefresh = false;
   let category = '', subcategory = '', next = null, allCategories = [], controller;
   let failedPage = 1, pending = false;
 
@@ -57,6 +62,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   }
 
   const formatter = new Intl.DateTimeFormat('sv-SE', {day: 'numeric', month: 'short', year: 'numeric'});
+  const monthFormatter = new Intl.DateTimeFormat('sv-SE', {month: 'short', year: 'numeric'});
   function date(value) {
     if (!value) return '';
     const parsed = new Date(value + 'T12:00:00');
@@ -106,6 +112,10 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     }
     status.textContent = 'Hämtar evenemang…';
     const query = new URLSearchParams({category, subcategory, page});
+    if (fromMonth) {
+      query.set('from_month', fromMonth);
+      query.set('to_month', toMonth);
+    }
     try {
       const response = await fetch(`${section.dataset.endpoint}?${query}`, {signal: current.signal});
       const data = await response.json();
@@ -113,13 +123,17 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       if (current !== controller) return;
       allCategories = data.categories;
       // Keep the controls stable while visitors navigate with a keyboard.
-      if (!categories.children.length) renderFilters();
+      if (!categories.children.length || filtersNeedRefresh) {
+        renderFilters();
+        filtersNeedRefresh = false;
+      }
       for (const event of data.events) results.append(card(event));
       next = data.next;
       more.hidden = !next;
       const title = allCategories.find(item => item.slug === category)?.title;
-      status.textContent = data.count === 0 ? 'Inga evenemang hittades. Prova en annan kategori.' :
+      status.textContent = data.count === 0 ? 'Inga evenemang hittades för dina val.' :
         `${data.count} evenemang${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
+      if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
       if (data.truncated) status.textContent += ' · Urval av de närmaste evenemangen.';
       if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';
     } catch (error) {
@@ -137,6 +151,24 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     }
   }
   more.addEventListener('click', () => { if (!pending && next) load(next); });
+  dateForm.addEventListener('submit', event => {
+    event.preventDefault();
+    toInput.setCustomValidity(fromInput.value > toInput.value ? 'Tillmånaden måste vara samma som eller senare än frånmånaden.' : '');
+    if (!dateForm.reportValidity()) return;
+    fromMonth = fromInput.value;
+    toMonth = toInput.value;
+    filtersNeedRefresh = true;
+    load(1);
+  });
+  toInput.addEventListener('input', () => toInput.setCustomValidity(''));
+  fromInput.addEventListener('input', () => toInput.setCustomValidity(''));
+  section.querySelector('[data-role="clear-dates"]').addEventListener('click', () => {
+    dateForm.reset();
+    toInput.setCustomValidity('');
+    fromMonth = toMonth = '';
+    filtersNeedRefresh = true;
+    load(1);
+  });
   retry.addEventListener('click', () => load(failedPage));
   // Refresh visible results without interrupting an ongoing request.
   setInterval(() => {

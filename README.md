@@ -34,6 +34,14 @@ Fel visas i evenemangsdelen medan resten av startsidan fortsätter fungera.
 
 ### Ticketmaster som tillägg
 
+Båda evenemangsdelarna har egna val för **Från månad** och **Till månad**.
+Välj exempelvis januari–mars 2027 och tryck **Visa perioden**. Valet omfattar
+hela båda månaderna och behålls vid kategoribyten och **Visa fler**.
+**Alla datum** tar bort månadsfiltret. Opublicerade evenemang kan inte visas.
+Perioden skickas till respektive källa före sidbläddring: Visit Stockholm
+använder `date_from`/`date_to`, Ticketmaster `localStartDateTime` i lokal tid.
+Olika perioder har separata cacheposter. Skottår och årsskiften hanteras.
+
 Visit Stockholm ligger kvar med egna filter och länkar. Ticketmaster visas
 i en separat del nedanför när `TICKETMASTER_API_KEY` är konfigurerad.
 Delarna använder separata API-routes och fungerar oberoende av varandra.

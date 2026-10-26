@@ -43,8 +43,10 @@ def _fetch(params):
     return json.loads(body)
 
 
-def get_events(category="", subcategory="", page=1):
+def get_events(category="", subcategory="", page=1, start_date="", end_date=""):
     key = (category, subcategory, page)
+    if start_date or end_date:
+        key += (start_date, end_date)
     # Serialize cache fills to avoid sending duplicate requests under load.
     with _lock:
         cached = _cache.get(key)
@@ -52,6 +54,8 @@ def get_events(category="", subcategory="", page=1):
             _cache.move_to_end(key)
             return deepcopy(cached[1])
         params = {"page": page, "size": 9}
+        if start_date:
+            params.update(date_from=start_date, date_to=end_date)
         if category:
             params["categories"] = category
         if subcategory:
