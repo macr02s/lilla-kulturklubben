@@ -1,6 +1,6 @@
 # Lilla kulturklubben
 
-En Flask-app med startsida och en dynamisk evenemangsdel från Visit Stockholm.
+En Flask-app med startsida och dynamiska evenemang från Visit Stockholm och Ticketmaster.
 
 För Enable Banking-sandboxens första API-anrop, se [Steg 2](ENABLE_BANKING.md).
 För återanvänd bankanslutning på Render, se [beständig lagring](BESTANDIG_LAGRING.md).
@@ -31,6 +31,35 @@ Evenemangens detaljsidor öppnas hos Visit Stockholm i en ny flik.
 Integrationen använder deras webbplatsanrop, som saknar ett verifierat publikt
 API-avtal och kan ändras. Anpassningen finns i `visit_stockholm.py`.
 Fel visas i evenemangsdelen medan resten av startsidan fortsätter fungera.
+
+### Ticketmaster som tillägg
+
+Visit Stockholm ligger kvar med egna filter och länkar. Ticketmaster visas
+i en separat del nedanför när `TICKETMASTER_API_KEY` är konfigurerad.
+Delarna använder separata API-routes och fungerar oberoende av varandra.
+
+Evenemangen hämtas av Flask via Ticketmasters Discovery API:
+https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/.
+Lägg `TICKETMASTER_API_KEY='din-nyckel'` i den privata `.env` lokalt och
+som `TICKETMASTER_API_KEY` i Render Environment. Nyckeln skickas aldrig till
+webbläsaren. `.env.render` är endast en privat kopieringsmall för Render.
+
+Sökningen begränsas till Sverige och Stockholm i Ticketmasters Discovery API.
+Servern kontrollerar dessutom att en spelplats har staden Stockholm och
+landskoden SE och att evenemangets länk tillhör Ticketmaster. Exempelvis
+Solna och Johanneshov tas inte med. API-parametern `source=ticketmaster`
+används inte, eftersom den uteslöt de svenska träffarna vid verifieringen. Kortens
+information och kategorier kommer från API:t och klick öppnar evenemangets
+egen Ticketmaster-adress. Datum och tid är spelplatsens lokala tid.
+
+Katalogen cachelagras tio minuter per serverprocess. Filter och sidbyte
+arbetar med samma katalog och kostar inga extra API-anrop. Högst fem
+API-sidor om 200 evenemang hämtas per uppdatering (API:ts gräns på 1 000
+poster); om fler finns markeras det som ett urval på sidan. Antalet på
+webbplatsen avser bara de evenemang som klarar kontrollen av stad och länk.
+Vid avbrott kan tidigare hämtade uppgifter visas i upp till en timme med en
+tydlig markering. Utan nyckel visas ett fel i evenemangsdelen; resten av
+webbplatsen fungerar. Anpassningen finns i `ticketmaster_events.py`.
 
 ## Kontroller
 

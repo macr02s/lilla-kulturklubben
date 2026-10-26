@@ -8,11 +8,13 @@ from app_config import auth_settings, runtime_environment
 from club_auth import init_auth
 from club_banking import init_banking
 from visit_stockholm import get_events, SourceUnavailable
+import ticketmaster_events as ticketmaster
 
 runtime_env = runtime_environment(os.environ, Path(__file__).with_name(".env"))
 mimetypes.add_type("image/webp", ".webp")
 app = Flask(__name__)
 app.config.update(auth_settings(runtime_env))
+app.config["TICKETMASTER_API_KEY"] = runtime_env.get("TICKETMASTER_API_KEY", "").strip()
 init_auth(app)
 init_banking(app)
 
@@ -23,10 +25,11 @@ if missing_auth:
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", ticketmaster_enabled=bool(app.config["TICKETMASTER_API_KEY"]))
 
 
 @app.get("/api/events")
+@app.get("/api/ticketmaster/events", endpoint="ticketmaster_events")
 def events():
     category = request.args.get("category", "")
     subcategory = request.args.get("subcategory", "")
@@ -37,8 +40,10 @@ def events():
             or not 1 <= int(page) <= 1000):
         return jsonify(error="Ogiltigt kategorival eller sidnummer."), 400
     try:
+        if request.endpoint == "ticketmaster_events":
+            return jsonify(ticketmaster.get_events(app.config["TICKETMASTER_API_KEY"], category, subcategory, int(page)))
         return jsonify(get_events(category, subcategory, int(page)))
-    except SourceUnavailable:
+    except (SourceUnavailable, ticketmaster.SourceUnavailable):
         return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
 
 if __name__ == "__main__":

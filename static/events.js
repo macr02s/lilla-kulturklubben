@@ -1,11 +1,11 @@
-(() => {
-  const section = document.querySelector('#evenemang');
-  const categories = document.querySelector('#event-categories');
-  const subcategories = document.querySelector('#event-subcategories');
-  const results = document.querySelector('#event-results');
-  const status = document.querySelector('#event-status');
-  const more = document.querySelector('#event-more');
-  const retry = document.querySelector('#event-retry');
+document.querySelectorAll('[data-events-widget]').forEach(section => {
+  const categories = section.querySelector('[data-role="categories"]');
+  const subcategories = section.querySelector('[data-role="subcategories"]');
+  const results = section.querySelector('[data-role="results"]');
+  const status = section.querySelector('[data-role="status"]');
+  const more = section.querySelector('[data-role="more"]');
+  const retry = section.querySelector('[data-role="retry"]');
+  const sourceName = section.dataset.source;
   let category = '', subcategory = '', next = null, allCategories = [], controller;
   let failedPage = 1, pending = false;
 
@@ -83,9 +83,9 @@
     const body = node('div', '', 'event-body');
     body.append(node('small', event.category), node('h3', event.title));
     const start = date(event.start), end = date(event.end);
-    body.append(node('p', start + (end && end !== start ? ' – ' + end : ''), 'event-date'));
+    body.append(node('p', start + (end && end !== start ? ' – ' + end : '') + (event.time ? ' · ' + event.time : ''), 'event-date'));
     if (event.venue) body.append(node('p', event.venue));
-    body.append(node('span', 'Läs mer hos Visit Stockholm ↗', 'event-read-more'));
+    body.append(node('span', `Läs mer hos ${sourceName} ↗`, 'event-read-more'));
     link.append(body);
     return link;
   }
@@ -120,10 +120,11 @@
       const title = allCategories.find(item => item.slug === category)?.title;
       status.textContent = data.count === 0 ? 'Inga evenemang hittades. Prova en annan kategori.' :
         `${data.count} evenemang${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
+      if (data.truncated) status.textContent += ' · Urval av de närmaste evenemangen.';
       if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';
     } catch (error) {
       if (current !== controller) return;
-      status.textContent = 'Evenemangen kunde inte hämtas just nu. Försök igen eller besök Visit Stockholm via länken ovan.';
+      status.textContent = `Evenemangen kunde inte hämtas just nu. Försök igen eller besök ${sourceName} via länken ovan.`;
       retry.hidden = false;
       more.hidden = true;
     } finally {
@@ -142,4 +143,4 @@
     if (!document.hidden && !pending) load(1);
   }, 10 * 60 * 1000);
   load(1);
-})();
+});
