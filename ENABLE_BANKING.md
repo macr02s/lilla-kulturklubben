@@ -131,6 +131,9 @@ Saldot är tydligt märkt **Sandbox · testsaldo**. Tillgängligt saldo, bokför
 saldo och eventuella andra saldotyper visas var för sig med bankens datum;
 de summeras inte. När bankåtkomsten avslutas eller går ut behöver kontoägaren
 ansluta på nytt. Appen begär enbart saldotillgång, inte transaktioner eller betalningar.
+Nya anslutningar begär nu Nordeas rapporterade maximala giltighet, högst 180
+dagar, i stället för det tidigare enda dygnet. En giltig sparad anslutning
+återanvänds och saldo uppdateras automatiskt var femte minut.
 Saldo-anrop görs först när den privata bankdelen används; kalendern behöver
 ingen bankåtkomst.
 
@@ -142,6 +145,9 @@ Krypterad bankanslutning använder samma databas som medlemskopplingarna.
 Konfigurera beständig datalagring om anslutningen ska överleva publiceringar
 och omstarter; den nuvarande fria Render-tjänstens tillfälliga lagring räcker
 inte för beständiga bankanslutningar.
+Appen stöder nu PostgreSQL via `DATABASE_URL`. Se [beständig lagring](BESTANDIG_LAGRING.md)
+för en stegvis konfiguration. Utan en ansluten databas eller beständig disk
+kan appen fortfarande tappa anslutningen på Render.
 
 Ett riktigt saldo kräver en separat **PRODUCTION**-applikation och dess
 nyckel, aktiverad åtkomst hos Enable Banking samt godkännande från banken.

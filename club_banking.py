@@ -1,16 +1,17 @@
 """Shared read-only club balance, explicitly approved by the account owner."""
 from datetime import datetime, timedelta, timezone
+from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from hmac import compare_digest
 import json
 import secrets
-from time import time
+from time import monotonic, time
 from urllib.parse import urlsplit
 from uuid import UUID
 
 from cryptography.fernet import Fernet, InvalidToken
-from flask import Blueprint, abort, current_app, flash, jsonify, redirect, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, request, session, url_for
 import requests
 
 from banking_check import API, BankingCheckError, authorization
@@ -20,14 +21,18 @@ bank = Blueprint("bank", __name__)
 
 
 class BankError(Exception):
-    pass
+    def __init__(self, message, reconnect=False):
+        super().__init__(message)
+        self.reconnect = reconnect
 
 
 def db():
     database = connection()
-    database.execute("CREATE TABLE IF NOT EXISTS bank_connection (id INTEGER PRIMARY KEY CHECK(id=1), encrypted TEXT NOT NULL)")
-    database.execute("CREATE TABLE IF NOT EXISTS bank_pending (state_hash TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL)")
-    database.commit()
+    if not g.get("bank_schema_ready"):
+        database.execute("CREATE TABLE IF NOT EXISTS bank_connection (id INTEGER PRIMARY KEY CHECK(id=1), encrypted TEXT NOT NULL)")
+        database.execute("CREATE TABLE IF NOT EXISTS bank_pending (state_hash TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL)")
+        database.commit()
+        g.bank_schema_ready = True
     return database
 
 
@@ -69,7 +74,7 @@ def api(method, path, body=None):
     except (requests.RequestException, BankingCheckError):
         raise BankError("Banken kunde inte kontaktas. Försök igen om en stund.") from None
     if response.status_code in {401, 403, 404, 410}:
-        raise BankError("Bankåtkomsten är inte längre tillgänglig. Kassören behöver kontrollera eller förnya anslutningen.")
+        raise BankError("Bankåtkomsten behöver förnyas av kontoägaren.", reconnect=True)
     if response.status_code != 200:
         raise BankError("Banken kunde inte slutföra förfrågan. Försök igen senare.")
     try:
@@ -92,7 +97,7 @@ def load_link():
     if (link.get("application_id") != current_app.config.get("ENABLE_BANKING_APPLICATION_ID")
             or link.get("environment") != current_app.config.get("ENABLE_BANKING_ENVIRONMENT")
             or link.get("admin_email") != current_app.config.get("ENABLE_BANKING_ADMIN_EMAIL")):
-        raise BankError("Bankinställningarna har ändrats. Kassören behöver ansluta kontot på nytt.")
+        raise BankError("Bankinställningarna har ändrats. Kontoägaren behöver ansluta kontot på nytt.", reconnect=True)
     return link
 
 
@@ -136,6 +141,24 @@ def connect():
     try:
         if not ready():
             raise BankError("Bankkopplingen är inte färdigkonfigurerad.")
+        try:
+            existing = load_link()
+        except BankError as error:
+            if not error.reconnect:
+                raise
+            existing = None
+        if existing:
+            try:
+                access = api("GET", "/sessions/" + valid_uuid(existing["session_id"]))
+            except BankError as error:
+                if not error.reconnect:
+                    raise
+            else:
+                selected = existing.get("selected")
+                available = access.get("accounts", [])
+                usable = selected in available if selected else any(item["id"] in available for item in existing["accounts"])
+                if access.get("status") == "AUTHORIZED" and usable:
+                    return redirect(url_for("club.index") + "#klubbkassan")
         info = api("GET", "/application")
         mode = current_app.config["ENABLE_BANKING_ENVIRONMENT"]
         if info.get("environment") != mode or info.get("active") is not True:
@@ -143,9 +166,16 @@ def connect():
         callback = current_app.config["ENABLE_BANKING_REDIRECT_URI"]
         if callback not in info.get("redirect_urls", []):
             raise BankError("Bankens callback-adress behöver registreras hos Enable Banking. Se projektets bankinstruktioner.")
+        directory = api("GET", "/aspsps?country=SE")
+        nordea = next((item for item in directory.get("aspsps", [])
+                       if item.get("name") == "Nordea" and item.get("country") == "SE"), {})
+        maximum = nordea.get("maximum_consent_validity")
+        if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum <= 0:
+            raise BankError("Bankens tillåtna giltighetstid kunde inte hämtas. Försök igen senare.")
+        duration = min(maximum, 180 * 24 * 60 * 60)
         state = secrets.token_urlsafe(32)
         result = api("POST", "/auth", {
-            "access": {"valid_until": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+            "access": {"valid_until": (datetime.now(timezone.utc) + timedelta(seconds=duration)).isoformat(),
                        "balances": True, "transactions": False},
             "aspsp": {"name": "Nordea", "country": "SE"}, "psu_type": "personal",
             "state": state, "redirect_url": callback, "language": "sv",
@@ -243,9 +273,13 @@ def balance():
         account_id = link.get("selected")
         if not account_id:
             return jsonify(**base, status="choose", accounts=link["accounts"] if admin else [])
+        cache_key = sha256(json.dumps([link["session_id"], account_id, link["application_id"]]).encode()).hexdigest()
+        cache = current_app.extensions.get("bank_balance_cache", {})
+        if cache.get("key") == cache_key and monotonic() - cache.get("created", 0) < 300:
+            return jsonify(**base, **deepcopy(cache["data"]))
         access = api("GET", "/sessions/" + valid_uuid(link["session_id"]))
         if access.get("status") != "AUTHORIZED" or account_id not in access.get("accounts", []):
-            raise BankError("Bankåtkomsten har löpt ut eller avslutats. Kassören behöver ansluta på nytt.")
+            raise BankError("Bankåtkomsten har löpt ut eller avslutats. Kontoägaren behöver förnya den.", reconnect=True)
         data = api("GET", "/accounts/" + valid_uuid(account_id) + "/balances")
         balances = []
         for item in data.get("balances", []):
@@ -261,10 +295,12 @@ def balance():
                              "name": str(item.get("name", "Saldo")),
                              "date": item.get("reference_date") or item.get("last_change_date_time") or ""})
         selected = next(item for item in link["accounts"] if item["id"] == account_id)
-        return jsonify(**base, status="connected", account=selected["label"], balances=balances,
-                       checked_at=datetime.now(timezone.utc).isoformat())
+        payload = {"status": "connected", "account": selected["label"], "balances": balances,
+                   "checked_at": datetime.now(timezone.utc).isoformat()}
+        current_app.extensions["bank_balance_cache"] = {"key": cache_key, "created": monotonic(), "data": payload}
+        return jsonify(**base, **payload)
     except BankError as error:
-        return jsonify(**base, status="error", message=str(error)), 502
+        return jsonify(**base, status="error", message=str(error), needs_reconnect=error.reconnect), 502
 
 
 def init_banking(app):

@@ -6,6 +6,10 @@
   const accounts = document.querySelector('#bank-accounts');
   const checked = document.querySelector('#bank-checked');
   const refresh = document.querySelector('#bank-refresh');
+  const connect = document.querySelector('#bank-connect');
+  const connectLabel = document.querySelector('#bank-connect-label');
+  let loading = false;
+  let lastLoad = 0;
   const labels = {ITAV: 'Tillgängligt saldo', ITBD: 'Bokfört saldo',
     CLAV: 'Tillgängligt vid senaste dagsavslut', CLBD: 'Bokfört vid senaste dagsavslut',
     OPAV: 'Ingående tillgängligt saldo', OPBD: 'Ingående bokfört saldo',
@@ -39,7 +43,10 @@
     form.append(button); accounts.append(form);
   }
   async function load() {
+    if (loading) return;
+    loading = true;
     refresh.disabled = true;
+    if (connect) connect.hidden = true;
     balances.replaceChildren(); accounts.replaceChildren(); checked.textContent = '';
     status.textContent = 'Hämtar saldo…';
     const controller = new AbortController();
@@ -47,9 +54,13 @@
     try {
       const response = await fetch(section.dataset.endpoint, {signal: controller.signal, cache: 'no-store'});
       if (!(response.headers.get('Content-Type') || '').includes('application/json')) {
-        throw new Error('Ladda om sidan och logga in igen för att se ditt saldo.');
+        throw new Error(response.status === 503 ? 'Medlemstjänsten är tillfälligt otillgänglig. Försök igen.' : 'Ladda om sidan och logga in igen för att se saldot.');
       }
       const data = await response.json();
+      if (connect && data.admin && (data.status === 'disconnected' || data.needs_reconnect)) {
+        connect.hidden = false;
+        connectLabel.textContent = data.needs_reconnect ? 'Förnya bankåtkomst' : 'Anslut Nordea en gång';
+      }
       if (!response.ok || data.status === 'error') throw new Error(data.message || 'Saldot kunde inte hämtas. Försök igen senare.');
       if (data.status === 'unconfigured') status.textContent = 'Bankkopplingen är ännu inte aktiverad på servern.';
       else if (data.status === 'disconnected') status.textContent = data.admin ? 'Anslut Nordea för att hämta klubbkontots saldo.' : 'Kontoägaren har inte anslutit klubbens konto ännu.';
@@ -58,10 +69,14 @@
         selectAccount(data);
       } else if (data.status === 'connected') {
         status.textContent = data.account;
-        for (const balance of data.balances) {
+        const priority = {ITAV: 0, ITBD: 1, CLAV: 2, CLBD: 3};
+        const items = [...data.balances].sort((a, b) => (priority[a.type] ?? 9) - (priority[b.type] ?? 9));
+        for (const balance of items) {
           const card = element('article', '', 'bank-balance');
           card.append(element('p', labels[balance.type] || balance.name, 'bank-balance-label'));
-          card.append(element('p', balance.amount.replace('.', ',') + ' ' + balance.currency, 'bank-amount'));
+          const parts = balance.amount.split('.');
+          const amount = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0') + (parts.length > 1 ? ',' + parts[1] : '');
+          card.append(element('p', amount + ' ' + balance.currency, 'bank-amount'));
           if (balance.date) card.append(element('p', 'Bankens datum: ' + balance.date, 'calendar-note'));
           balances.append(card);
         }
@@ -73,8 +88,14 @@
       status.textContent = error.name === 'AbortError' ? 'Det tog för lång tid att hämta saldot. Försök igen.' : (error instanceof TypeError ? 'Saldot kunde inte hämtas. Kontrollera anslutningen och försök igen.' : error.message);
     } finally {
       clearTimeout(timeout); refresh.disabled = false;
+      loading = false;
+      lastLoad = Date.now();
     }
   }
   refresh.addEventListener('click', load);
+  setInterval(() => { if (!document.hidden) load(); }, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - lastLoad >= 5 * 60 * 1000) load();
+  });
   load();
 })();

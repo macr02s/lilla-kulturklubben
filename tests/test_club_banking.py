@@ -1,4 +1,5 @@
 from hashlib import sha256
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import time
@@ -185,7 +186,8 @@ class ClubBankingTests(TestCase):
         self.login()
         metadata={'active':True,'environment':'SANDBOX','redirect_urls':[self.app.config['ENABLE_BANKING_REDIRECT_URI']]}
         destination='https://tilisy.enablebanking.com/ais/start?sessionid=test'
-        with patch('club_banking.api',side_effect=[metadata,{'url':destination}]) as api:
+        directory={'aspsps':[{'name':'Nordea','country':'SE','maximum_consent_validity':15552000}]}
+        with patch('club_banking.api',side_effect=[metadata,directory,{'url':destination}]) as api:
             response=self.client.post('/klubben/bank/anslut',data={'csrf_token':'test-csrf'})
             self.assertEqual(response.location,destination)
             state=api.call_args.args[2]['state']
@@ -208,3 +210,58 @@ class ClubBankingTests(TestCase):
             self.assertEqual(self.client.get('/callback?state='+state+'&code=test-code').status_code,302)
         with self.app.app_context():
             self.assertIsNone(load_link()['selected'])
+
+    def test_healthy_saved_connection_is_reused_without_new_bank_authorization(self):
+        self.login()
+        with self.app.app_context():
+            save_link(self.link())
+        with patch('club_banking.api',return_value={'status':'AUTHORIZED','accounts':[self.account_id]}) as api:
+            response=self.client.post('/klubben/bank/anslut',data={'csrf_token':'test-csrf'})
+            self.assertEqual(response.status_code,302)
+            api.assert_called_once_with('GET','/sessions/'+self.session_id)
+
+    def test_request_uses_bank_maximum_instead_of_one_day(self):
+        self.login()
+        metadata={'active':True,'environment':'SANDBOX','redirect_urls':[self.app.config['ENABLE_BANKING_REDIRECT_URI']]}
+        directory={'aspsps':[{'name':'Nordea','country':'SE','maximum_consent_validity':15552000}]}
+        before=datetime.now(timezone.utc)
+        with patch('club_banking.api',side_effect=[metadata,directory,{'url':'https://auth.enablebanking.com/start'}]) as api:
+            self.client.post('/klubben/bank/anslut',data={'csrf_token':'test-csrf'})
+            access=api.call_args.args[2]['access']
+        duration=(datetime.fromisoformat(access['valid_until'])-before).total_seconds()
+        self.assertGreaterEqual(duration,15552000)
+        self.assertLess(duration,15552005)
+        self.assertIs(access['transactions'],False)
+        self.assertIs(access['balances'],True)
+
+    def test_balance_cache_is_shared_without_sharing_owner_permissions(self):
+        self.login()
+        with self.app.app_context():
+            save_link(self.link())
+        payload=[{'status':'AUTHORIZED','accounts':[self.account_id]},
+                 {'balances':[{'balance_amount':{'amount':'2500.50','currency':'SEK'},'balance_type':'ITAV'}]}]
+        with patch('club_banking.api',side_effect=payload) as api:
+            first=self.client.get('/klubben/bank/saldo').get_json()
+            self.assertTrue(first['admin'])
+            self.login('member@example.com')
+            second=self.client.get('/klubben/bank/saldo').get_json()
+            self.assertFalse(second['admin'])
+            self.assertEqual(second['balances'],first['balances'])
+            self.assertEqual(api.call_count,2)
+
+    def test_ordinary_network_failure_does_not_request_new_bank_login(self):
+        self.login()
+        with self.app.app_context():
+            save_link(self.link())
+        from club_banking import BankError
+        with patch('club_banking.api',side_effect=BankError('Temporary error')):
+            response=self.client.get('/klubben/bank/saldo')
+        self.assertFalse(response.get_json()['needs_reconnect'])
+
+    def test_revocation_returns_reconnect_flag(self):
+        self.login()
+        with self.app.app_context():
+            save_link(self.link())
+        with patch('club_banking.api',return_value={'status':'EXPIRED','accounts':[]}):
+            response=self.client.get('/klubben/bank/saldo')
+        self.assertTrue(response.get_json()['needs_reconnect'])

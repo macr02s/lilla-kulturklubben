@@ -3,6 +3,7 @@
 En Flask-app med startsida och en dynamisk evenemangsdel från Visit Stockholm.
 
 För Enable Banking-sandboxens första API-anrop, se [Steg 2](ENABLE_BANKING.md).
+För återanvänd bankanslutning på Render, se [beständig lagring](BESTANDIG_LAGRING.md).
 
 ## Kör lokalt
 

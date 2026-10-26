@@ -1,5 +1,4 @@
 <header class="wrap site-header{% if club_member %} site-header--signed-in{% endif %}">
-  <a class="brand" href="{{ url_for('home') }}"><b>k.</b><span>Lilla<br>kulturklubben</span></a>
   <div class="header-right">
     <nav aria-label="Huvudmeny">
       <a href="{{ url_for('home') }}#evenemang">Evenemang</a>
@@ -15,4 +14,5 @@
     </div>
     {% endif %}
   </div>
+  <a class="brand brand--image" href="{{ url_for('home') }}"><img src="{{ url_for('static', filename='lilla-kulturklubben-logo-320px.webp') }}" alt="Lilla kulturklubben – startsida" width="320" height="180"></a>
 </header>

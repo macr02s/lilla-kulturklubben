@@ -12,6 +12,7 @@ from flask import (Blueprint, abort, current_app, g, redirect, render_template,
                    request, session, url_for)
 from joserfc.errors import JoseError
 from requests.exceptions import RequestException
+from club_database import DatabaseUnavailable, open_database
 
 club = Blueprint("club", __name__)
 
@@ -35,9 +36,7 @@ def auth_ready():
 
 def connection():
     if "club_db" not in g:
-        path = Path(current_app.config["CLUB_DATABASE"])
-        path.parent.mkdir(parents=True, exist_ok=True)
-        g.club_db = sqlite3.connect(path, timeout=10)
+        g.club_db = open_database(current_app.config.get("DATABASE_URL", ""), current_app.config["CLUB_DATABASE"])
         g.club_db.execute("""CREATE TABLE IF NOT EXISTS members (
             email TEXT PRIMARY KEY, provider TEXT NOT NULL, subject TEXT NOT NULL,
             UNIQUE(provider, subject))""")
@@ -50,7 +49,7 @@ def bind_member(email, subject):
     db = connection()
     try:
         with db:
-            db.execute("INSERT OR IGNORE INTO members(email, provider, subject) VALUES (?, 'google', ?)",
+            db.execute("INSERT INTO members(email, provider, subject) VALUES (?, 'google', ?) ON CONFLICT DO NOTHING",
                        (email, subject))
         row = db.execute("SELECT subject FROM members WHERE email = ? AND provider = 'google'", (email,)).fetchone()
         return bool(row and row[0] == subject)
@@ -172,6 +171,10 @@ def init_auth(app):
                    client_kwargs={"scope": "openid email profile", "code_challenge_method": "S256", "timeout": 10})
     app.extensions["club_oauth"] = oauth
     app.register_blueprint(club)
+
+    @app.errorhandler(DatabaseUnavailable)
+    def database_unavailable(error):
+        return "Medlemstjänsten är tillfälligt otillgänglig. Försök igen om en stund.", 503, {"Cache-Control": "no-store"}
 
     @app.context_processor
     def membership_context():

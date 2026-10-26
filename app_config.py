@@ -52,6 +52,7 @@ def auth_settings(environ):
         "GOOGLE_REDIRECT_URI": redirect_uri,
         "CLUB_MEMBERS": environ.get("CLUB_MEMBERS", ""),
         "CLUB_CALENDAR_ID": environ.get("CLUB_CALENDAR_ID", "").strip(),
+        "DATABASE_URL": environ.get("DATABASE_URL", "").strip(),
         "ENABLE_BANKING_APPLICATION_ID": environ.get("ENABLE_BANKING_APPLICATION_ID", "").strip(),
         "ENABLE_BANKING_PRIVATE_KEY_PATH": environ.get("ENABLE_BANKING_PRIVATE_KEY_PATH", "").strip(),
         "ENABLE_BANKING_ADMIN_EMAIL": environ.get("ENABLE_BANKING_ADMIN_EMAIL", "").strip().casefold(),

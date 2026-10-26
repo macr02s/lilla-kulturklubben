@@ -1,5 +1,6 @@
 import re
 import os
+import mimetypes
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
@@ -9,6 +10,7 @@ from club_banking import init_banking
 from visit_stockholm import get_events, SourceUnavailable
 
 runtime_env = runtime_environment(os.environ, Path(__file__).with_name(".env"))
+mimetypes.add_type("image/webp", ".webp")
 app = Flask(__name__)
 app.config.update(auth_settings(runtime_env))
 init_auth(app)
