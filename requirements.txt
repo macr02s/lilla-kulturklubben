@@ -9,3 +9,5 @@ Werkzeug==3.1.9
 Authlib==1.9.1
 requests==2.34.2
 python-dotenv==1.2.4
+PyJWT==2.15.1
+cryptography==50.0.2
