@@ -1,0 +1,18 @@
+<header class="wrap site-header{% if club_member %} site-header--signed-in{% endif %}">
+  <a class="brand" href="{{ url_for('home') }}"><b>k.</b><span>Lilla<br>kulturklubben</span></a>
+  <div class="header-right">
+    <nav aria-label="Huvudmeny">
+      <a href="{{ url_for('home') }}#evenemang">Evenemang</a>
+      <a class="club-nav" href="{{ url_for('club.index') }}"{% if request.endpoint == 'club.index' %} aria-current="page"{% endif %}>Klubben <span aria-hidden="true">↗</span></a>
+    </nav>
+    {% if club_member %}
+    <div class="header-account">
+      <span class="header-status" title="{{ club_member.email }}"><span class="status-dot" aria-hidden="true"></span><span>Inloggad<small>{{ club_member.name }}</small></span></span>
+      <form action="{{ url_for('club.logout') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ logout_csrf }}">
+        <button type="submit" class="header-logout">Logga ut</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</header>

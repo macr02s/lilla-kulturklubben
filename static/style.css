@@ -50,3 +50,17 @@
 /* Privat bankoversikt */
 .club-bank{margin-top:48px;scroll-margin-top:25px}.bank-badge{display:inline-block;border:1px solid #c9b89e;background:#eeeade;color:var(--wine);padding:9px 13px;border-radius:30px;font-size:11px;white-space:nowrap}.bank-panel{padding:27px;background:#fffcf6;border:1px solid var(--line);border-radius:10px}.bank-panel>p{font-size:13px;color:var(--muted);line-height:1.8}.bank-balances{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.bank-balance-label{font-size:12px;color:var(--wine);margin-bottom:12px}.bank-amount{font-family:Georgia,serif;font-size:clamp(28px,4vw,43px);font-variant-numeric:tabular-nums;margin-bottom:12px;overflow-wrap:anywhere}.bank-actions{display:flex;gap:15px;flex-wrap:wrap;align-items:center;margin-top:20px}.bank-actions .button,.bank-account-form .button{font-family:inherit;border:0;cursor:pointer}.bank-account-form{max-width:600px;margin-top:20px}.bank-account-form>label{display:block;font-size:13px;line-height:1.7}.bank-account-form select{display:block;width:100%;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:13px;margin:9px 0 20px}.bank-actions button:disabled{opacity:.6;cursor:wait}@media(max-width:700px){.club-bank{margin-top:35px}.bank-badge{margin-top:17px}.bank-balances{grid-template-columns:1fr}.bank-panel{padding:21px}}
 .bank-account-form .bank-consent{display:flex;align-items:flex-start;gap:10px;margin:0 0 20px}.bank-consent input{margin-top:5px;accent-color:var(--wine)}
+
+/* Inloggningsstatus och utloggning i det gemensamma sidhuvudet. */
+.site-header{height:auto;min-height:112px;gap:24px;padding-block:20px}
+.header-right{display:flex;align-items:center;justify-content:flex-end;gap:30px}
+.header-account{display:flex;align-items:center;gap:16px;padding-left:24px;border-left:1px solid var(--line)}
+.header-status{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;line-height:1.4}
+.header-status small{display:block;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:400;color:var(--muted)}
+.status-dot{width:7px;height:7px;flex-shrink:0;border-radius:50%;background:#5b7d60}
+.header-account form{margin:0}
+.header-logout{font:inherit;font-size:12px;font-weight:500;white-space:nowrap;background:var(--wine);color:var(--paper);border:1px solid var(--wine);border-radius:4px;padding:11px 16px;cursor:pointer}
+.header-logout:hover{background:#822d48}
+@media(max-width:900px){.header-right{gap:20px}.header-right nav{gap:20px}.header-account{gap:12px;padding-left:18px}.header-status small{max-width:100px}}
+@media(max-width:700px){.site-header{min-height:90px;padding-block:18px;gap:16px}.site-header--signed-in{flex-wrap:wrap}.site-header--signed-in .header-right{flex:1 1 100%;justify-content:space-between;gap:12px}.header-account{border-left:0;padding-left:0;gap:10px}.header-status{font-size:11px;gap:6px}.header-status small{max-width:85px}.header-logout{font-size:11px;padding:10px 12px}.header-right nav{gap:16px}}
+@media(max-width:380px){.header-status small{max-width:65px}.header-right nav{gap:12px}.header-account{gap:8px}}

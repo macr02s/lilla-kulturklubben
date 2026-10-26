@@ -175,11 +175,12 @@ def init_auth(app):
 
     @app.context_processor
     def membership_context():
-        return {"club_member": current_member()}
+        user = current_member()
+        return {"club_member": user, "logout_csrf": csrf_token() if user else None}
 
     @app.after_request
     def private_headers(response):
-        if request.blueprint in {"club", "bank"}:
+        if request.blueprint in {"club", "bank"} or session.get("member"):
             response.headers["Cache-Control"] = "no-store, private"
             response.headers["Pragma"] = "no-cache"
             response.headers["X-Robots-Tag"] = "noindex, nofollow"

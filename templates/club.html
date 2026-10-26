@@ -9,10 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="club-page">
-  <header class="wrap">
-    <a class="brand" href="{{ url_for('home') }}"><b>k.</b><span>Lilla<br>kulturklubben</span></a>
-    <nav aria-label="Huvudmeny"><a href="{{ url_for('home') }}#evenemang">Evenemang</a><a class="club-nav" href="{{ url_for('club.index') }}" aria-current="page">Klubben <span aria-hidden="true">↗</span></a></nav>
-  </header>
+  {% include '_header.html' %}
   <main class="wrap club-main">
     {% if member %}
     <section class="club-welcome" aria-labelledby="club-title">
@@ -21,7 +18,6 @@
     </section>
     <section class="club-member-panel" aria-labelledby="member-title">
       <div><p class="eyebrow">DU ÄR INLOGGAD</p><h2 id="member-title">En plats för oss.</h2><p>Medlemssidan är öppen för dig som är med i Lilla kulturklubben.</p><a class="text-link" href="{{ url_for('home') }}#evenemang">Hitta nästa kulturupplevelse ↗</a></div>
-      <div class="club-account"><p>{{ member.email }}</p><form action="{{ url_for('club.logout') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="filter-button">Logga ut</button></form></div>
     </section>
     <section class="club-bank" id="klubbkassan" aria-labelledby="bank-title" data-endpoint="{{ url_for('bank.balance') }}" data-select-url="{{ url_for('bank.choose_account') }}" data-csrf="{{ csrf_token }}">
       <div class="calendar-heading"><div><p class="eyebrow">VÅR GEMENSAMMA KASSA</p><h2 id="bank-title">Klubbkassan.</h2><p>Aktuellt saldo på klubbens valda Nordea-konto.</p></div><span class="bank-badge">{{ 'Sandbox · testsaldo' if bank_mode == 'SANDBOX' else 'Nordea · kontosaldo' }}</span></div>

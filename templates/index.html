@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<header class="wrap"><a class="brand" href="#"><b>k.</b><span>Lilla<br>kulturklubben</span></a><nav aria-label="Huvudmeny"><a href="#evenemang">Evenemang</a><a class="club-nav" href="{{ url_for('club.index') }}">Klubben <span aria-hidden="true">↗</span></a></nav></header>
+{% include '_header.html' %}
 <main>
 <h1 class="visually-hidden">Lilla kulturklubben</h1>
 <figure class="welcome-banner wrap">
