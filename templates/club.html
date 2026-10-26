@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#651e35">
+  <title>Klubben – Lilla kulturklubben</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="club-page">
+  <header class="wrap">
+    <a class="brand" href="{{ url_for('home') }}"><b>k.</b><span>Lilla<br>kulturklubben</span></a>
+    <nav aria-label="Huvudmeny"><a href="{{ url_for('home') }}#evenemang">Evenemang</a><a class="club-nav" href="{{ url_for('club.index') }}" aria-current="page">Klubben <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main class="wrap club-main">
+    {% if member %}
+    <section class="club-welcome" aria-labelledby="club-title">
+      <div><p class="eyebrow">VÅR EGEN MÖTESPLATS</p><h1 id="club-title">Hej {{ member.name }}.<br>Välkommen till <em>Klubben.</em></h1><p class="intro">Här börjar vår gemensamma plats för mer kultur tillsammans.</p></div>
+      <span class="club-flower" aria-hidden="true">✳</span>
+    </section>
+    <section class="club-member-panel" aria-labelledby="member-title">
+      <div><p class="eyebrow">DU ÄR INLOGGAD</p><h2 id="member-title">En plats för oss.</h2><p>Medlemssidan är öppen för dig som är med i Lilla kulturklubben.</p><a class="text-link" href="{{ url_for('home') }}#evenemang">Hitta nästa kulturupplevelse ↗</a></div>
+      <div class="club-account"><p>{{ member.email }}</p><form action="{{ url_for('club.logout') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="filter-button">Logga ut</button></form></div>
+    </section>
+    <section class="club-calendar" aria-labelledby="calendar-title">
+      <div class="calendar-heading">
+        <div><p class="eyebrow">VÅRA GEMENSAMMA PLANER</p><h2 id="calendar-title">Nästa gång vi ses.</h2><p>Klubbens träffar och kulturupplevelser, samlade på ett ställe.</p></div>
+        {% if calendar %}<a class="button" href="{{ calendar.open_url }}" target="_blank" rel="noopener noreferrer">Öppna i Google Kalender <span aria-hidden="true">↗</span></a>{% endif %}
+      </div>
+      {% if calendar %}
+      <div class="calendar-frame"><iframe src="{{ calendar.embed_url }}" title="Lilla kulturklubbens gemensamma kalender" width="1000" height="640" loading="lazy" referrerpolicy="no-referrer"></iframe></div>
+      <p class="calendar-note">Tider visas i Stockholms tidszon. Om kalendern inte visas här, öppna den via knappen ovan och välj det Google-konto som kalendern är delad med. Lägg till och ändra träffar i Google Kalender.</p>
+      {% else %}
+      <p class="club-message">Vår gemensamma kalender kopplas in snart.</p>
+      {% endif %}
+    </section>
+    {% else %}
+    <section class="club-login" aria-labelledby="club-title">
+      <div class="club-flower" aria-hidden="true">✳</div>
+      <p class="eyebrow">VÅR EGEN MÖTESPLATS</p>
+      <h1 id="club-title">Välkommen till<br><em>Klubben.</em></h1>
+      <p class="intro">En liten klubb, stora upplevelser.<br>Logga in för att komma till vår medlemssida.</p>
+      {% if error %}<p class="club-message" role="alert">{{ error }}</p>{% endif %}
+      {% if auth_ready %}
+      <a class="google-login" href="{{ url_for('club.login') }}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.23c1.89-1.74 2.98-4.3 2.98-7.36Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.41l-3.23-2.51c-.89.6-2.03.96-3.39.96-2.6 0-4.81-1.76-5.6-4.12H3.06v2.59A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.92a6 6 0 0 1 0-3.84V7.49H3.06a10 10 0 0 0 0 9.02l3.34-2.59Z"/><path fill="#EA4335" d="M12 5.96c1.47 0 2.79.5 3.82 1.49l2.87-2.87A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.94 5.49l3.34 2.59C7.19 7.72 9.4 5.96 12 5.96Z"/></svg>Logga in med Google</a>
+      {% else %}
+      <p class="club-message">Medlemsinloggningen öppnar snart.</p>
+      {% endif %}
+      <p class="club-login-note">Bara godkända medlemmar får tillgång.<br>Välj det Google-konto som du använder i klubben.</p>
+      <a class="text-link" href="{{ url_for('home') }}">← Tillbaka till startsidan</a>
+    </section>
+    {% endif %}
+  </main>
+  <footer class="wrap"><a class="brand" href="{{ url_for('home') }}"><b>k.</b><span>Lilla<br>kulturklubben</span></a><p>Kultur är bättre tillsammans.</p><a href="{{ url_for('home') }}">Till startsidan ↗</a></footer>
+</body>
+</html>

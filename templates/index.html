@@ -1,13 +1,32 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="sv">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Min hemsida</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lilla kulturklubben – böcker, film, konst och nya perspektiv. Kultur är bättre tillsammans.">
+<meta name="theme-color" content="#651e35"><title>Lilla kulturklubben – kultur tillsammans</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-    <h1>Välkommen till min hemsida!</h1>
-    <p>Min hemsida är byggd med Python och Flask.</p>
-</body>
-</html>
+<header class="wrap"><a class="brand" href="#"><b>k.</b><span>Lilla<br>kulturklubben</span></a><nav aria-label="Huvudmeny"><a href="#evenemang">Evenemang</a><a class="club-nav" href="{{ url_for('club.index') }}">Klubben <span aria-hidden="true">↗</span></a></nav></header>
+<main>
+<h1 class="visually-hidden">Lilla kulturklubben</h1>
+<figure class="welcome-banner wrap">
+<img src="{{ url_for('static', filename='kulturklubben-1672.jpg') }}"
+     srcset="{{ url_for('static', filename='kulturklubben-640.jpg') }} 640w, {{ url_for('static', filename='kulturklubben-960.jpg') }} 960w, {{ url_for('static', filename='kulturklubben-1672.jpg') }} 1672w"
+     sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 964px) calc(100vw - 64px), 900px"
+     width="1672" height="941" alt="Lilla kulturklubben – en färgstark illustration av sex glada vänner vid vattnet, med böcker, musik, konst och teater." fetchpriority="high" decoding="async">
+</figure>
+<section class="wrap events-section" id="evenemang" aria-labelledby="events-heading" data-endpoint="{{ url_for('events') }}">
+<div class="section-title"><div><p class="eyebrow">UT OCH UPPLEV STOCKHOLM</p><h2 id="events-heading">Vad händer i stan?</h2></div><p>Aktuella evenemang från<br><a class="text-link" href="https://www.visitstockholm.se/event/" target="_blank" rel="noopener noreferrer">Visit Stockholm ↗</a></p></div>
+<div class="event-filters" role="group" aria-label="Evenemangskategorier" id="event-categories"></div>
+<div class="event-filters subcategories" role="group" aria-label="Underkategorier" id="event-subcategories" hidden></div>
+<div class="event-toolbar"><p id="event-status" role="status" aria-live="polite">Hämtar evenemang…</p><button id="event-retry" class="filter-button" type="button" hidden>Försök igen</button></div>
+<div class="event-grid" id="event-results" aria-busy="true"></div>
+<button class="button load-more" id="event-more" type="button" hidden>Visa fler evenemang ↓</button>
+<p class="event-source">Utbudet hämtas automatiskt och uppdateras var tionde minut. Information och bilder: Visit Stockholm och respektive arrangör. Detaljer och bokning öppnas hos Visit Stockholm.</p>
+<noscript><p>Aktivera JavaScript för att filtrera här, eller <a class="text-link" href="https://www.visitstockholm.se/event/">se evenemangen hos Visit Stockholm ↗</a>.</p></noscript>
+</section>
+</main>
+<footer class="wrap"><a class="brand" href="#"><b>k.</b><span>Lilla<br>kulturklubben</span></a><p>Kultur är bättre tillsammans.</p><a href="#">Till toppen ↑</a></footer>
+<script src="{{ url_for('static', filename='events.js') }}" defer></script>
+</body></html>
