@@ -23,7 +23,7 @@ class CombinedEventsTests(TestCase):
     @patch.object(combined,'_billetto_catalog')
     @patch.object(combined,'_ticketmaster_catalog')
     @patch.object(combined,'_visit_catalog')
-    def test_home_and_member_search_use_identical_merged_results(self, visit, tm, billetto):
+    def test_home_has_one_merged_search(self, visit, tm, billetto):
         visit.return_value={'events':[raw('Visit Stockholm',time='')]}
         tm.return_value={'events':[raw('Ticketmaster')]}
         billetto.return_value={'events':[raw('Billetto')]}
@@ -42,20 +42,58 @@ class CombinedEventsTests(TestCase):
             self.assertTrue(data['combined'])
             self.assertEqual(data['events'][0]['link_source'],'Ticketmaster')
             self.assertEqual(set(data['events'][0]['sources']),{'Visit Stockholm','Ticketmaster','Billetto'})
-            helper=auth_fixture.ClubAuthTests();helper.setUp()
-            try:
-                helper.app.config.update(config)
-                helper.sign_in()
-                member=helper.client.get('/klubben/evenemang'+query)
-                self.assertEqual(member.get_json(),data)
-                self.assertEqual(helper.client.get('/klubben').get_data(as_text=True).count('data-events-widget'),1)
-            finally:
-                helper.doCleanups();helper.temp.cleanup()
 
     @patch.object(combined,'get_events')
     def test_invalid_public_range_does_not_fetch_any_sources(self, fetch):
         response=app.test_client().get('/api/combined-events?from_month=2027-09&to_month=2027-01')
         self.assertEqual(response.status_code,400)
+        fetch.assert_not_called()
+
+    @patch.object(combined,'_billetto_catalog')
+    @patch.object(combined,'_ticketmaster_catalog')
+    @patch.object(combined,'_visit_catalog')
+    def test_source_deselection_recalculates_duplicate_link_and_cache(self, visit, tm, billetto):
+        visit.return_value={'events':[raw('Visit Stockholm',time='')]}
+        tm.return_value={'events':[raw('Ticketmaster')]}
+        billetto.return_value={'events':[raw('Billetto')]}
+        settings={'TICKETMASTER_API_KEY':'test-ticketmaster','BILLETTO_API_KEYPAIR':'test-key:test-secret'}
+        first=combined.get_events(settings)
+        self.assertEqual(first['events'][0]['link_source'],'Ticketmaster')
+        visit.reset_mock();tm.reset_mock();billetto.reset_mock()
+        selected=('Visit Stockholm','Billetto')
+        second=combined.get_events(settings,selected_sources=selected)
+        self.assertEqual(second['count'],1)
+        self.assertEqual(second['events'][0]['link_source'],'Billetto')
+        self.assertEqual(second['events'][0]['sources'],['Billetto','Visit Stockholm'])
+        tm.assert_not_called();visit.assert_called_once();billetto.assert_called_once()
+        combined.get_events(settings,selected_sources=selected)
+        self.assertEqual(visit.call_count,1)
+        self.assertEqual(combined.get_events(settings)['events'][0]['link_source'],'Ticketmaster')
+
+    @patch.object(combined,'_billetto_catalog')
+    @patch.object(combined,'_ticketmaster_catalog')
+    @patch.object(combined,'_visit_catalog')
+    def test_empty_selection_makes_no_provider_requests(self, visit, tm, billetto):
+        data=combined.get_events({'TICKETMASTER_API_KEY':'test-key','BILLETTO_API_KEYPAIR':'key:secret'},selected_sources=())
+        self.assertEqual(data['count'],0)
+        self.assertEqual(data['events'],[])
+        self.assertEqual(data['sources'],[])
+        self.assertIsNone(data['next'])
+        visit.assert_not_called();tm.assert_not_called();billetto.assert_not_called()
+
+    @patch.object(combined,'get_events',return_value={'events':[],'count':0})
+    def test_public_provider_selection_is_validated_and_forwarded_with_period(self, fetch):
+        client=app.test_client()
+        response=client.get('/api/combined-events?sources=billetto,visit-stockholm&from_month=2027-01&to_month=2027-03&page=2&category=music')
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(fetch.call_args.kwargs['selected_sources'],('Visit Stockholm','Billetto'))
+        self.assertEqual(fetch.call_args.args[1:],('music','',2,'2027-01-01','2027-03-31'))
+        fetch.reset_mock()
+        self.assertEqual(client.get('/api/combined-events?sources=').status_code,200)
+        self.assertEqual(fetch.call_args.kwargs['selected_sources'],())
+        fetch.reset_mock()
+        for query in ('sources=unknown','sources=billetto,','sources=billetto&sources=ticketmaster','sources='+('a'*1000)):
+            self.assertEqual(client.get('/api/combined-events?'+query).status_code,400)
         fetch.assert_not_called()
 
     def test_three_sources_merge_and_prefer_ticket_link(self):
@@ -119,20 +157,16 @@ class CombinedEventsTests(TestCase):
         self.assertEqual(result['count'],1)
         self.assertEqual(result['unavailable_sources'],['Visit Stockholm'])
 
-    def test_combined_route_requires_membership_and_valid_months(self):
+    def test_member_page_has_no_event_search_or_event_script(self):
         helper=auth_fixture.ClubAuthTests();helper.setUp()
         try:
-            self.assertEqual(helper.client.get('/klubben/evenemang').status_code,302)
-            self.assertNotIn('id="club-events"',helper.client.get('/klubben').get_data(as_text=True))
+            self.assertEqual(helper.client.get('/klubben/evenemang').status_code,404)
             helper.sign_in()
-            self.assertIn('id="club-events"',helper.client.get('/klubben').get_data(as_text=True))
-            with patch.object(combined,'get_events',return_value={'events':[],'count':0}) as get:
-                response=helper.client.get('/klubben/evenemang?from_month=2027-01&to_month=2027-03')
-                self.assertEqual(response.status_code,200)
-                self.assertIn('no-store',response.headers['Cache-Control'])
-                self.assertEqual(get.call_args.args[-2:],('2027-01-01','2027-03-31'))
-                self.assertEqual(helper.client.get('/klubben/evenemang?from_month=2027-09&to_month=2027-01').status_code,400)
-                self.assertEqual(get.call_count,1)
+            page=helper.client.get('/klubben').get_data(as_text=True)
+            self.assertNotIn('data-events-widget',page)
+            self.assertNotIn('events.js',page)
+            self.assertIn('id="klubbkassan"',page)
+            self.assertIn('calendar-title',page)
         finally:
             helper.doCleanups();helper.temp.cleanup()
 

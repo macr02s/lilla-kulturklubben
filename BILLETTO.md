@@ -1,11 +1,24 @@
 # Gemensamt evenemangsflöde och Billetto
 
-Startsidan och medlemssidans del efter kalendern använder samma gemensamma
-flöde och kortmall. Varje sida har en sökning för alla anslutna källor.
+All evenemangssökning ligger på startsidan. Medlemssidan `/klubben`
+innehåller klubbkassan och kalendern, utan evenemangslista eller sökskript.
+Den tidigare sökrouten `/klubben/evenemang` är borttagen.
+
 Startsidan hämtar offentliga evenemang via `/api/combined-events`.
-`/klubben/evenemang` kräver fortfarande medlemsinloggning. Bankuppgifter och
-medlemsdata ingår aldrig i det publika evenemangsanropet. Källor visas ovanför
-filtren, antal avser unika evenemang och korten visar sina ursprungskällor.
+Bankuppgifter och medlemsdata ingår aldrig i det publika evenemangsanropet.
+Alla konfigurerade leverantörer är förvalda. Kryssrutorna kan avmarkeras
+var för sig och **Välj alla** återställer dem. Om alla avmarkeras visas
+ett tomt resultat och inga leverantörer kontaktas. Valen gäller den öppna
+sidan och behålls vid månadsval, kategorifilter, sidbyte och uppdatering av
+resultaten. En ny sidladdning börjar med alla valda igen.
+
+API-parametern `sources` är en kommaseparerad lista med `visit-stockholm`,
+`ticketmaster` och `billetto`. Utelämnad parameter väljer alla tillgängliga
+leverantörer; `sources=` väljer ingen. Okända värden nekas. Valet sker
+före hämtning, normalisering och sammanslagning så att avmarkerade källor
+inte hämtas eller bidrar med länkar, bilder eller källhänvisning.
+Varje period och leverantörsurval har en separat cachepost. Antalet avser
+unika evenemang och korten visar sina valda ursprungskällor.
 
 ## Skaffa Billetto-åtkomst
 

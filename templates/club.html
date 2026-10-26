@@ -35,7 +35,6 @@
       <p class="club-message">Vår gemensamma kalender kopplas in snart.</p>
       {% endif %}
     </section>
-    {% with events_id='club-events', events_title='Upptäck Stockholm tillsammans', events_endpoint=url_for('club.combined_events'), events_home=false %}{% include '_combined_events.html' %}{% endwith %}
     {% else %}
     <section class="club-login" aria-labelledby="club-title">
       <div class="club-flower" aria-hidden="true">✳</div>
@@ -54,6 +53,6 @@
     {% endif %}
   </main>
   <footer class="wrap"><a class="brand brand--image" href="{{ url_for('home') }}"><img src="{{ url_for('static', filename='lilla-kulturklubben-logo-320px.webp') }}" alt="Lilla kulturklubben – startsida" width="320" height="180" loading="lazy"></a><p>Kultur är bättre tillsammans.</p><a href="{{ url_for('home') }}">Till startsidan ↗</a></footer>
-  {% if member %}<script src="{{ url_for('static', filename='bank.js') }}" defer></script><script src="{{ url_for('static', filename='events.js') }}" defer></script>{% endif %}
+  {% if member %}<script src="{{ url_for('static', filename='bank.js') }}" defer></script>{% endif %}
 </body>
 </html>

@@ -120,21 +120,21 @@ def _billetto_catalog(settings, start_date, end_date):
     return billetto.get_catalog(settings["BILLETTO_API_KEYPAIR"], start_date, end_date)
 
 
-def providers(settings):
+def providers(settings, selected_sources=None):
     active = {"Visit Stockholm": _visit_catalog}
     if settings.get("TICKETMASTER_API_KEY"):
         active["Ticketmaster"] = _ticketmaster_catalog
     if settings.get("BILLETTO_API_KEYPAIR"):
         active["Billetto"] = _billetto_catalog
-    return active
+    return active if selected_sources is None else {name: fetch for name, fetch in active.items() if name in selected_sources}
 
 
-def _catalog(settings, start_date, end_date):
+def _catalog(settings, start_date, end_date, selected_sources=None):
     items, unavailable, successful = [], [], []
     truncated, stale = False, False
     today = datetime.now(ZoneInfo("Europe/Stockholm")).date().isoformat()
     with ThreadPoolExecutor(max_workers=3) as executor:
-        jobs = {name: executor.submit(fetch, settings, start_date, end_date) for name, fetch in providers(settings).items()}
+        jobs = {name: executor.submit(fetch, settings, start_date, end_date) for name, fetch in providers(settings, selected_sources).items()}
         for name, job in jobs.items():
             try:
                 data = job.result()
@@ -149,7 +149,7 @@ def _catalog(settings, start_date, end_date):
                 if (event and event["end"] >= (start_date or today)
                         and (not end_date or event["start"] <= end_date)):
                     items.append(event)
-    if not successful:
+    if jobs and not successful:
         raise SourceUnavailable()
     events = deduplicate(items)
     categories = {}
@@ -164,9 +164,10 @@ def _catalog(settings, start_date, end_date):
         "combined": True, "updated": datetime.now(timezone.utc).isoformat()}
 
 
-def get_events(settings, category="", subcategory="", page=1, start_date="", end_date=""):
+def get_events(settings, category="", subcategory="", page=1, start_date="", end_date="", selected_sources=None):
+    selected = tuple(providers(settings, selected_sources))
     credentials = tuple(settings.get(k, "") for k in ("TICKETMASTER_API_KEY", "BILLETTO_API_KEYPAIR"))
-    key = (sha256(repr(credentials).encode()).hexdigest(), start_date, end_date)
+    key = (sha256(repr(credentials).encode()).hexdigest(), start_date, end_date, selected)
     with _lock:
         cached = _cache.get(key)
         ttl = 60 if cached and cached[1]["unavailable_sources"] else 600
@@ -174,13 +175,13 @@ def get_events(settings, category="", subcategory="", page=1, start_date="", end
             data = cached[1]
         else:
             try:
-                data = _catalog(settings, start_date, end_date)
+                data = _catalog(settings, start_date, end_date, selected)
             except SourceUnavailable:
                 if not cached or monotonic() - cached[0] >= 3600:
                     raise
                 data = deepcopy(cached[1])
                 data["stale"] = True
-                data["unavailable_sources"] = list(providers(settings))
+                data["unavailable_sources"] = list(selected)
             else:
                 _cache[key] = (monotonic(), data)
                 _cache.move_to_end(key)
@@ -190,4 +191,5 @@ def get_events(settings, category="", subcategory="", page=1, start_date="", end
                  and (not subcategory or e["genre_id"] == subcategory)]
         offset = (page - 1) * 9
         return deepcopy({**data, "events": items[offset:offset + 9], "count": len(items), "page": page,
+                         "selected_sources": list(selected),
                          "next": page + 1 if offset + 9 < len(items) else None})

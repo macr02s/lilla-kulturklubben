@@ -10,7 +10,7 @@ from club_banking import init_banking
 from visit_stockholm import get_events, SourceUnavailable
 import ticketmaster_events as ticketmaster
 from event_months import month_range
-from event_query import parse_filters
+from event_query import parse_filters, parse_sources, SOURCE_NAMES
 import club_events
 
 runtime_env = runtime_environment(os.environ, Path(__file__).with_name(".env"))
@@ -29,7 +29,9 @@ if missing_auth:
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    active = club_events.providers(app.config)
+    event_sources = [{"slug": slug, "name": name} for slug, name in SOURCE_NAMES.items() if name in active]
+    return render_template("index.html", event_sources=event_sources)
 
 
 @app.get("/api/events")
@@ -59,10 +61,11 @@ def events():
 def combined_events():
     try:
         filters = parse_filters(request.args)
+        sources = parse_sources(request.args)
     except ValueError:
         return jsonify(error="Kontrollera kategori, sida och månadsperiod."), 400
     try:
-        return jsonify(club_events.get_events(app.config, *filters))
+        return jsonify(club_events.get_events(app.config, *filters, selected_sources=sources))
     except club_events.SourceUnavailable:
         return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
 

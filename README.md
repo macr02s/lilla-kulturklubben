@@ -43,7 +43,7 @@ använder `date_from`/`date_to`, Ticketmaster `localStartDateTime` i lokal tid.
 Olika perioder har separata cacheposter. Skottår och årsskiften hanteras.
 
 Visit Stockholm, Ticketmaster och Billetto ingår i en gemensam sökning på
-startsidan och medlemssidan. Ticketmaster och Billetto tas med när deras
+startsidan. Ticketmaster och Billetto tas med när deras
 nycklar är konfigurerade. Normalisering, Stockholm-filter och dubblettkontroll
 sker på servern innan kategorifilter och sidbläddring. Korten visar källor
 och en prioriterad biljettlänk; separata leverantörslistor visas inte.
@@ -71,9 +71,14 @@ Vid avbrott kan tidigare hämtade uppgifter visas i upp till en timme med en
 tydlig markering. Utan nyckel visas ett fel i evenemangsdelen; resten av
 webbplatsen fungerar. Anpassningen finns i `ticketmaster_events.py`.
 
-## Gemensamt flöde på medlemssidan
+## Gemensamt flöde på startsidan
 
-På startsidan och `/klubben` samlas anslutna källor med Stockholm-filter och konservativ
+All evenemangssökning ligger på startsidan. Kryssa ur de leverantörer som
+inte ska ingå och använd **Välj alla** för att återställa urvalet.
+Valet behålls vid datumfilter och sidbläddring. Dubbletter och biljettlänkar
+beräknas från just de valda källorna. Medlemssidan har ingen evenemangslista.
+
+På startsidan samlas anslutna källor med Stockholm-filter och konservativ
 dubblettkontroll. Se [Billetto och gemensam evenemangskatalog](BILLETTO.md)
 för nycklar, matchningsregler, begränsningar och framtida adaptrar.
 

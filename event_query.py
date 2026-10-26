@@ -1,6 +1,22 @@
-"""Validate filters identically for public and member views of the common catalog."""
+"""Validate public event search filters and provider selections."""
 import re
 from event_months import month_range
+
+SOURCE_NAMES = {"visit-stockholm": "Visit Stockholm", "ticketmaster": "Ticketmaster", "billetto": "Billetto"}
+
+
+def parse_sources(query):
+    if "sources" not in query:
+        return None
+    value = query.get("sources", "")
+    if len(value) > 100 or (hasattr(query, "getlist") and len(query.getlist("sources")) != 1):
+        raise ValueError("Invalid sources")
+    if not value:
+        return ()
+    slugs = value.split(",")
+    if any(slug not in SOURCE_NAMES for slug in slugs):
+        raise ValueError("Invalid source")
+    return tuple(name for slug, name in SOURCE_NAMES.items() if slug in slugs)
 
 
 def parse_filters(query):

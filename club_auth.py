@@ -9,12 +9,10 @@ from urllib.parse import urlencode, urlsplit
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
 from flask import (Blueprint, abort, current_app, g, redirect, render_template,
-                   request, session, url_for, jsonify)
+                   request, session, url_for)
 from joserfc.errors import JoseError
 from requests.exceptions import RequestException
 from club_database import DatabaseUnavailable, open_database
-from event_query import parse_filters
-import club_events
 
 club = Blueprint("club", __name__)
 
@@ -87,19 +85,6 @@ def member_required(view):
             return redirect(url_for("club.index"))
         return view(*args, **kwargs)
     return protected
-
-
-@club.get("/klubben/evenemang")
-@member_required
-def combined_events():
-    try:
-        filters = parse_filters(request.args)
-    except ValueError:
-        return jsonify(error="Kontrollera kategori, sida och månadsperiod."), 400
-    try:
-        return jsonify(club_events.get_events(current_app.config, *filters))
-    except club_events.SourceUnavailable:
-        return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
 
 
 @club.get("/klubben")

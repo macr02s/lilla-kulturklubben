@@ -1,6 +1,12 @@
 <section class="{% if events_home %}wrap {% else %}club-events {% endif %}events-section" id="{{ events_id }}" aria-labelledby="{{ events_id }}-heading" data-events-widget data-source="biljettleverantören" data-endpoint="{{ events_endpoint }}">
   <div class="section-title"><div>{% if events_home %}<p class="eyebrow">UT OCH UPPLEV STOCKHOLM</p>{% endif %}<h2 id="{{ events_id }}-heading">{{ events_title }}</h2></div></div>
-  <div class="event-sources" aria-label="Källor i den gemensamma sökningen"><span>Gemensam sökning</span><div data-role="sources"></div></div>
+  <fieldset class="event-sources">
+    <legend>Välj vilka leverantörer som ska ingå</legend>
+    <div data-role="sources">
+      {% for source in event_sources %}<label class="source-option"><input type="checkbox" value="{{ source.slug }}" checked><span>{{ source.name }}</span></label>{% endfor %}
+      <button class="filter-button button--small" type="button" data-role="all-sources">Välj alla</button>
+    </div>
+  </fieldset>
   {% with month_prefix=events_id %}{% include '_event_months.html' %}{% endwith %}
   <div class="event-filters" role="group" aria-label="Evenemangskategorier" data-role="categories"></div>
   <div class="event-filters subcategories" role="group" aria-label="Underkategorier" data-role="subcategories" hidden></div>

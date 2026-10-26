@@ -7,6 +7,8 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   const retry = section.querySelector('[data-role="retry"]');
   const sourceName = section.dataset.source;
   const sourceList = section.querySelector('[data-role="sources"]');
+  const sourceInputs = [...sourceList.querySelectorAll('input[type="checkbox"]')];
+  let selectedSources = sourceInputs.filter(input => input.checked).map(input => input.value);
   const dateForm = section.querySelector('[data-role="date-filter"]');
   const fromInput = section.querySelector('[data-role="from-month"]');
   const toInput = section.querySelector('[data-role="to-month"]');
@@ -114,6 +116,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     }
     status.textContent = 'Hämtar evenemang…';
     const query = new URLSearchParams({category, subcategory, page});
+    query.set('sources', selectedSources.join(','));
     if (fromMonth) {
       query.set('from_month', fromMonth);
       query.set('to_month', toMonth);
@@ -124,7 +127,6 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       if (!response.ok) throw new Error(data.error);
       if (current !== controller) return;
       allCategories = data.categories;
-      if (sourceList) sourceList.replaceChildren(...(data.sources || []).map(name => node('span', name, 'source-badge')));
       // Keep the controls stable while visitors navigate with a keyboard.
       if (!categories.children.length || filtersNeedRefresh) {
         renderFilters();
@@ -135,7 +137,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       more.hidden = !next;
       const title = allCategories.find(item => item.slug === category)?.title;
       const eventLabel = data.combined ? (data.count === 1 ? 'unikt evenemang' : 'unika evenemang') : 'evenemang';
-      status.textContent = data.count === 0 ? 'Inga evenemang hittades för dina val.' :
+      status.textContent = !selectedSources.length ? 'Välj minst en leverantör för att visa evenemang.' : data.count === 0 ? 'Inga evenemang hittades för dina val.' :
         `${data.count} ${eventLabel}${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
       if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
       if (data.truncated) status.textContent += ' · Urval av de närmaste evenemangen.';
@@ -158,6 +160,17 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     }
   }
   more.addEventListener('click', () => { if (!pending && next) load(next); });
+  function selectSources() {
+    selectedSources = sourceInputs.filter(input => input.checked).map(input => input.value);
+    category = subcategory = '';
+    filtersNeedRefresh = true;
+    load(1);
+  }
+  for (const input of sourceInputs) input.addEventListener('change', selectSources);
+  section.querySelector('[data-role="all-sources"]').addEventListener('click', () => {
+    for (const input of sourceInputs) input.checked = true;
+    selectSources();
+  });
   dateForm.addEventListener('submit', event => {
     event.preventDefault();
     toInput.setCustomValidity(fromInput.value > toInput.value ? 'Tillmånaden måste vara samma som eller senare än frånmånaden.' : '');
