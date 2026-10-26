@@ -161,7 +161,7 @@ def _catalog(settings, start_date, end_date):
         {"slug": child, "title": title} for child, title in sorted(children.items(), key=lambda i: i[1])]}
         for slug, children in sorted(categories.items(), key=lambda i: LABELS[i[0]])],
         "unavailable_sources": unavailable, "sources": successful, "stale": stale, "truncated": truncated,
-        "updated": datetime.now(timezone.utc).isoformat()}
+        "combined": True, "updated": datetime.now(timezone.utc).isoformat()}
 
 
 def get_events(settings, category="", subcategory="", page=1, start_date="", end_date=""):

@@ -28,7 +28,7 @@ class EventTests(unittest.TestCase):
     def test_page_and_assets(self):
         page = self.client.get("/").get_data(as_text=True)
         self.assertIn('id="evenemang"', page)
-        self.assertIn('Ticketmaster', page)
+        self.assertIn('data-endpoint="/api/combined-events"', page)
         self.assertNotIn('test-api-key', page)
         for asset in ("events.js", "style.css"):
             with self.client.get("/static/" + asset) as response:
@@ -54,8 +54,8 @@ class EventTests(unittest.TestCase):
     def test_ticketmaster_failure_does_not_replace_or_break_visit_stockholm(self, fetch, visit):
         visit.return_value = {"events": [{"title": "Visit event"}], "categories": [], "count": 1}
         page = self.client.get("/").get_data(as_text=True)
-        self.assertIn('data-source="Visit Stockholm"', page)
-        self.assertIn('data-source="Ticketmaster"', page)
+        self.assertEqual(page.count('data-events-widget'), 1)
+        self.assertIn('data-endpoint="/api/combined-events"', page)
         self.assertEqual(self.client.get("/api/ticketmaster/events").status_code, 503)
         self.assertEqual(self.client.get("/api/events").get_json()["count"], 1)
         visit.assert_called_once_with("", "", 1)
@@ -63,8 +63,8 @@ class EventTests(unittest.TestCase):
     def test_without_ticketmaster_key_original_section_still_exists(self):
         app.config["TICKETMASTER_API_KEY"] = ""
         page = self.client.get("/").get_data(as_text=True)
-        self.assertIn('data-source="Visit Stockholm"', page)
-        self.assertNotIn('data-source="Ticketmaster"', page)
+        self.assertEqual(page.count('data-events-widget'), 1)
+        self.assertIn('data-endpoint="/api/combined-events"', page)
 
     @patch.object(source, "_fetch")
     def test_strict_city_country_and_deduplication(self, fetch):

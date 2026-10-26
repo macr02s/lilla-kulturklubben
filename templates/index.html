@@ -16,30 +16,7 @@
      sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 964px) calc(100vw - 64px), 900px"
      width="1672" height="941" alt="Lilla kulturklubben – en färgstark illustration av sex glada vänner vid vattnet, med böcker, musik, konst och teater." fetchpriority="high" decoding="async">
 </figure>
-<section class="wrap events-section" id="evenemang" aria-labelledby="events-heading" data-events-widget data-source="Visit Stockholm" data-endpoint="{{ url_for('events') }}">
-<div class="section-title"><div><p class="eyebrow">UT OCH UPPLEV STOCKHOLM</p><h2 id="events-heading">Vad händer i stan?</h2></div><p>Aktuella evenemang från<br><a class="text-link" href="https://www.visitstockholm.se/event/" target="_blank" rel="noopener noreferrer">Visit Stockholm ↗</a></p></div>
-{% with month_prefix='visit' %}{% include '_event_months.html' %}{% endwith %}
-<div class="event-filters" role="group" aria-label="Evenemangskategorier" id="event-categories" data-role="categories"></div>
-<div class="event-filters subcategories" role="group" aria-label="Underkategorier" id="event-subcategories" data-role="subcategories" hidden></div>
-<div class="event-toolbar"><p id="event-status" data-role="status" role="status" aria-live="polite">Hämtar evenemang…</p><button id="event-retry" data-role="retry" class="filter-button" type="button" hidden>Försök igen</button></div>
-<div class="event-grid" id="event-results" data-role="results" aria-busy="true"></div>
-<button class="button load-more" id="event-more" data-role="more" type="button" hidden>Visa fler evenemang ↓</button>
-<p class="event-source">Utbudet hämtas automatiskt och uppdateras var tionde minut. Information och bilder: Visit Stockholm och respektive arrangör. Detaljer och bokning öppnas hos Visit Stockholm.</p>
-<noscript><p>Aktivera JavaScript för att filtrera här, eller <a class="text-link" href="https://www.visitstockholm.se/event/">se evenemangen hos Visit Stockholm ↗</a>.</p></noscript>
-</section>
-{% if ticketmaster_enabled %}
-<section class="wrap events-section" id="ticketmaster" aria-labelledby="ticketmaster-heading" data-events-widget data-source="Ticketmaster" data-endpoint="{{ url_for('ticketmaster_events') }}">
-<div class="section-title"><div><p class="eyebrow">UT OCH UPPLEV STOCKHOLM</p><h2 id="ticketmaster-heading">Mer att uppleva i Stockholm</h2></div><p>Aktuella evenemang från<br><a class="text-link" href="https://www.ticketmaster.se/discover/stockholm" target="_blank" rel="noopener noreferrer">Ticketmaster ↗</a></p></div>
-{% with month_prefix='ticketmaster' %}{% include '_event_months.html' %}{% endwith %}
-<div class="event-filters" role="group" aria-label="Evenemangskategorier" id="ticketmaster-categories" data-role="categories"></div>
-<div class="event-filters subcategories" role="group" aria-label="Underkategorier" id="ticketmaster-subcategories" data-role="subcategories" hidden></div>
-<div class="event-toolbar"><p id="ticketmaster-status" data-role="status" role="status" aria-live="polite">Hämtar evenemang…</p><button id="ticketmaster-retry" data-role="retry" class="filter-button" type="button" hidden>Försök igen</button></div>
-<div class="event-grid" id="ticketmaster-results" data-role="results" aria-busy="true"></div>
-<button class="button load-more" id="ticketmaster-more" data-role="more" type="button" hidden>Visa fler evenemang ↓</button>
-<p class="event-source">Utbudet hämtas automatiskt och uppdateras var tionde minut. Information och bilder: Ticketmaster och respektive arrangör. Detaljer och bokning öppnas hos Ticketmaster.</p>
-<noscript><p>Aktivera JavaScript för att filtrera här, eller <a class="text-link" href="https://www.ticketmaster.se/discover/stockholm">se evenemangen hos Ticketmaster ↗</a>.</p></noscript>
-</section>
-{% endif %}
+{% with events_id='evenemang', events_title='Vad händer i stan?', events_endpoint=url_for('combined_events'), events_home=true %}{% include '_combined_events.html' %}{% endwith %}
 </main>
 <footer class="wrap"><a class="brand brand--image" href="#"><img src="{{ url_for('static', filename='lilla-kulturklubben-logo-320px.webp') }}" alt="Lilla kulturklubben – till toppen" width="320" height="180" loading="lazy"></a><p>Kultur är bättre tillsammans.</p><a href="#">Till toppen ↑</a></footer>
 <script src="{{ url_for('static', filename='events.js') }}" defer></script>

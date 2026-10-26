@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import billetto_events as billetto
 import club_events as combined
+from app import app
 import test_club_auth as auth_fixture
 
 
@@ -18,6 +19,44 @@ def normalized(source='Ticketmaster', **kw):
 class CombinedEventsTests(TestCase):
     def setUp(self):
         combined._cache.clear()
+
+    @patch.object(combined,'_billetto_catalog')
+    @patch.object(combined,'_ticketmaster_catalog')
+    @patch.object(combined,'_visit_catalog')
+    def test_home_and_member_search_use_identical_merged_results(self, visit, tm, billetto):
+        visit.return_value={'events':[raw('Visit Stockholm',time='')]}
+        tm.return_value={'events':[raw('Ticketmaster')]}
+        billetto.return_value={'events':[raw('Billetto')]}
+        config={'TICKETMASTER_API_KEY':'test-ticketmaster','BILLETTO_API_KEYPAIR':'test-key:test-secret'}
+        query='?from_month=2027-01&to_month=2027-03'
+        with patch.dict(app.config,config):
+            client=app.test_client()
+            page=client.get('/').get_data(as_text=True)
+            self.assertEqual(page.count('data-events-widget'),1)
+            self.assertEqual(page.count('data-role="date-filter"'),1)
+            self.assertIn('data-endpoint="/api/combined-events"',page)
+            public=client.get('/api/combined-events'+query)
+            self.assertEqual(public.status_code,200)
+            data=public.get_json()
+            self.assertEqual(data['count'],1)
+            self.assertTrue(data['combined'])
+            self.assertEqual(data['events'][0]['link_source'],'Ticketmaster')
+            self.assertEqual(set(data['events'][0]['sources']),{'Visit Stockholm','Ticketmaster','Billetto'})
+            helper=auth_fixture.ClubAuthTests();helper.setUp()
+            try:
+                helper.app.config.update(config)
+                helper.sign_in()
+                member=helper.client.get('/klubben/evenemang'+query)
+                self.assertEqual(member.get_json(),data)
+                self.assertEqual(helper.client.get('/klubben').get_data(as_text=True).count('data-events-widget'),1)
+            finally:
+                helper.doCleanups();helper.temp.cleanup()
+
+    @patch.object(combined,'get_events')
+    def test_invalid_public_range_does_not_fetch_any_sources(self, fetch):
+        response=app.test_client().get('/api/combined-events?from_month=2027-09&to_month=2027-01')
+        self.assertEqual(response.status_code,400)
+        fetch.assert_not_called()
 
     def test_three_sources_merge_and_prefer_ticket_link(self):
         events=[normalized('Visit Stockholm',time=''),normalized('Ticketmaster'),normalized('Billetto')]

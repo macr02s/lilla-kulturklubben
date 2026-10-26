@@ -1,7 +1,11 @@
 # Gemensamt evenemangsflöde och Billetto
 
-Det nya flödet ligger efter kalendern på `/klubben` och kräver inloggning.
-Startsidan behåller sina separata delar för Visit Stockholm och Ticketmaster.
+Startsidan och medlemssidans del efter kalendern använder samma gemensamma
+flöde och kortmall. Varje sida har en sökning för alla anslutna källor.
+Startsidan hämtar offentliga evenemang via `/api/combined-events`.
+`/klubben/evenemang` kräver fortfarande medlemsinloggning. Bankuppgifter och
+medlemsdata ingår aldrig i det publika evenemangsanropet. Källor visas ovanför
+filtren, antal avser unika evenemang och korten visar sina ursprungskällor.
 
 ## Skaffa Billetto-åtkomst
 
@@ -37,7 +41,8 @@ De kan få egna adaptrar när dokumenterad åtkomst finns.
 Varje post normaliseras till namn, plats, stad, datum, klockslag, kategori,
 bild, biljettlänk och källor. Bara bekräftad stad Stockholm godtas;
 Solna, Johanneshov och poster utan stad tas inte med i detta flöde.
-De ursprungliga evenemangsdelarna på startsidan behåller sitt utbud.
+De separata leverantörsanropen finns kvar för kompatibilitet, men används
+inte som separata listor i gränssnittet.
 
 Dubletter matchas konservativt på normaliserat namn, plats och exakt
 datumintervall. Olika klockslag behålls som separata föreställningar.

@@ -34,7 +34,7 @@ Fel visas i evenemangsdelen medan resten av startsidan fortsätter fungera.
 
 ### Ticketmaster som tillägg
 
-Båda evenemangsdelarna har egna val för **Från månad** och **Till månad**.
+Den gemensamma evenemangssökningen har val för **Från månad** och **Till månad**.
 Välj exempelvis januari–mars 2027 och tryck **Visa perioden**. Valet omfattar
 hela båda månaderna och behålls vid kategoribyten och **Visa fler**.
 **Alla datum** tar bort månadsfiltret. Opublicerade evenemang kan inte visas.
@@ -42,9 +42,11 @@ Perioden skickas till respektive källa före sidbläddring: Visit Stockholm
 använder `date_from`/`date_to`, Ticketmaster `localStartDateTime` i lokal tid.
 Olika perioder har separata cacheposter. Skottår och årsskiften hanteras.
 
-Visit Stockholm ligger kvar med egna filter och länkar. Ticketmaster visas
-i en separat del nedanför när `TICKETMASTER_API_KEY` är konfigurerad.
-Delarna använder separata API-routes och fungerar oberoende av varandra.
+Visit Stockholm, Ticketmaster och Billetto ingår i en gemensam sökning på
+startsidan och medlemssidan. Ticketmaster och Billetto tas med när deras
+nycklar är konfigurerade. Normalisering, Stockholm-filter och dubblettkontroll
+sker på servern innan kategorifilter och sidbläddring. Korten visar källor
+och en prioriterad biljettlänk; separata leverantörslistor visas inte.
 
 Evenemangen hämtas av Flask via Ticketmasters Discovery API:
 https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/.
@@ -71,7 +73,7 @@ webbplatsen fungerar. Anpassningen finns i `ticketmaster_events.py`.
 
 ## Gemensamt flöde på medlemssidan
 
-På `/klubben` samlas anslutna källor med Stockholm-filter och konservativ
+På startsidan och `/klubben` samlas anslutna källor med Stockholm-filter och konservativ
 dubblettkontroll. Se [Billetto och gemensam evenemangskatalog](BILLETTO.md)
 för nycklar, matchningsregler, begränsningar och framtida adaptrar.
 

@@ -10,6 +10,8 @@ from club_banking import init_banking
 from visit_stockholm import get_events, SourceUnavailable
 import ticketmaster_events as ticketmaster
 from event_months import month_range
+from event_query import parse_filters
+import club_events
 
 runtime_env = runtime_environment(os.environ, Path(__file__).with_name(".env"))
 mimetypes.add_type("image/webp", ".webp")
@@ -27,7 +29,7 @@ if missing_auth:
 
 @app.route("/")
 def home():
-    return render_template("index.html", ticketmaster_enabled=bool(app.config["TICKETMASTER_API_KEY"]))
+    return render_template("index.html")
 
 
 @app.get("/api/events")
@@ -52,6 +54,18 @@ def events():
         return jsonify(get_events(category, subcategory, int(page), **period))
     except (SourceUnavailable, ticketmaster.SourceUnavailable):
         return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
+
+@app.get("/api/combined-events")
+def combined_events():
+    try:
+        filters = parse_filters(request.args)
+    except ValueError:
+        return jsonify(error="Kontrollera kategori, sida och månadsperiod."), 400
+    try:
+        return jsonify(club_events.get_events(app.config, *filters))
+    except club_events.SourceUnavailable:
+        return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
+
 
 if __name__ == "__main__":
     app.run(debug=runtime_env.get("FLASK_DEBUG") == "1")

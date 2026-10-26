@@ -6,6 +6,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   const more = section.querySelector('[data-role="more"]');
   const retry = section.querySelector('[data-role="retry"]');
   const sourceName = section.dataset.source;
+  const sourceList = section.querySelector('[data-role="sources"]');
   const dateForm = section.querySelector('[data-role="date-filter"]');
   const fromInput = section.querySelector('[data-role="from-month"]');
   const toInput = section.querySelector('[data-role="to-month"]');
@@ -91,7 +92,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     const start = date(event.start), end = date(event.end);
     body.append(node('p', start + (end && end !== start ? ' – ' + end : '') + (event.time ? ' · ' + event.time : ''), 'event-date'));
     if (event.venue) body.append(node('p', event.venue));
-    if (event.sources?.length > 1) body.append(node('p', 'Hittad hos ' + event.sources.join(' · '), 'event-provenance'));
+    if (event.sources?.length) body.append(node('p', 'Källor: ' + event.sources.join(' · '), 'event-provenance'));
     body.append(node('span', `Läs mer hos ${event.link_source || sourceName} ↗`, 'event-read-more'));
     link.append(body);
     return link;
@@ -123,6 +124,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       if (!response.ok) throw new Error(data.error);
       if (current !== controller) return;
       allCategories = data.categories;
+      if (sourceList) sourceList.replaceChildren(...(data.sources || []).map(name => node('span', name, 'source-badge')));
       // Keep the controls stable while visitors navigate with a keyboard.
       if (!categories.children.length || filtersNeedRefresh) {
         renderFilters();
@@ -132,8 +134,9 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       next = data.next;
       more.hidden = !next;
       const title = allCategories.find(item => item.slug === category)?.title;
+      const eventLabel = data.combined ? (data.count === 1 ? 'unikt evenemang' : 'unika evenemang') : 'evenemang';
       status.textContent = data.count === 0 ? 'Inga evenemang hittades för dina val.' :
-        `${data.count} evenemang${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
+        `${data.count} ${eventLabel}${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
       if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
       if (data.truncated) status.textContent += ' · Urval av de närmaste evenemangen.';
       if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';

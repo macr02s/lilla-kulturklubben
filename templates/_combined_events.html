@@ -1,0 +1,12 @@
+<section class="{% if events_home %}wrap {% else %}club-events {% endif %}events-section" id="{{ events_id }}" aria-labelledby="{{ events_id }}-heading" data-events-widget data-source="biljettleverantören" data-endpoint="{{ events_endpoint }}">
+  <div class="section-title"><div>{% if events_home %}<p class="eyebrow">UT OCH UPPLEV STOCKHOLM</p>{% endif %}<h2 id="{{ events_id }}-heading">{{ events_title }}</h2></div></div>
+  <div class="event-sources" aria-label="Källor i den gemensamma sökningen"><span>Gemensam sökning</span><div data-role="sources"></div></div>
+  {% with month_prefix=events_id %}{% include '_event_months.html' %}{% endwith %}
+  <div class="event-filters" role="group" aria-label="Evenemangskategorier" data-role="categories"></div>
+  <div class="event-filters subcategories" role="group" aria-label="Underkategorier" data-role="subcategories" hidden></div>
+  <div class="event-toolbar"><p data-role="status" role="status" aria-live="polite">Hämtar gemensamt utbud…</p><button data-role="retry" class="filter-button" type="button" hidden>Försök igen</button></div>
+  <div class="event-grid" data-role="results" aria-busy="true"></div>
+  <button class="button load-more" data-role="more" type="button" hidden>Visa fler evenemang ↓</button>
+  <p class="event-source">Ett gemensamt utbud från anslutna källor. Matchande evenemang samlas på ett kort med en prioriterad biljettlänk. Endast bekräftade platser i Stockholm visas. Information och bilder kommer från respektive källa.</p>
+  <noscript><p>Aktivera JavaScript för att visa och filtrera evenemangen.</p></noscript>
+</section>
