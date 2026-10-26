@@ -37,39 +37,36 @@
 
 /* Gemensam kalender inne i Klubben. */
 .club-calendar{margin-top:48px}
-.calendar-heading{display:flex;align-items:center;justify-content:space-between;gap:28px;margin-bottom:25px}
-.calendar-heading .eyebrow{margin-bottom:15px}
-.calendar-heading h2{margin-bottom:15px}
-.calendar-heading p:not(.eyebrow){font-size:13px;line-height:1.8;color:var(--muted);margin-bottom:0}
-.calendar-heading .button{flex-shrink:0}
+.calendar-heading{margin-bottom:16px}
+.calendar-heading h2{margin:0}
+.calendar-actions{margin-top:14px}
 .calendar-frame{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .calendar-frame iframe{display:block;width:100%;height:640px;border:0}
 .calendar-note{font-size:11px;line-height:1.8;color:var(--muted);max-width:800px;margin:16px 0 0}
-@media(max-width:700px){.club-calendar{margin-top:35px}.calendar-heading{display:block}.calendar-heading .button{margin-top:20px}.calendar-frame iframe{height:560px}}
+@media(max-width:700px){.club-calendar{margin-top:35px}.calendar-frame iframe{height:560px}}
 
 /* Privat bankoversikt */
 .club-bank{margin-top:48px;scroll-margin-top:25px}.bank-badge{display:inline-block;border:1px solid #c9b89e;background:#eeeade;color:var(--wine);padding:9px 13px;border-radius:30px;font-size:11px;white-space:nowrap}.bank-panel{padding:27px;background:#fffcf6;border:1px solid var(--line);border-radius:10px}.bank-panel>p{font-size:13px;color:var(--muted);line-height:1.8}.bank-balances{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.bank-balance-label{font-size:12px;color:var(--wine);margin-bottom:12px}.bank-amount{font-family:Georgia,serif;font-size:clamp(28px,4vw,43px);font-variant-numeric:tabular-nums;margin-bottom:12px;overflow-wrap:anywhere}.bank-actions{display:flex;gap:15px;flex-wrap:wrap;align-items:center;margin-top:20px}.bank-actions .button,.bank-account-form .button{font-family:inherit;border:0;cursor:pointer}.bank-account-form{max-width:600px;margin-top:20px}.bank-account-form>label{display:block;font-size:13px;line-height:1.7}.bank-account-form select{display:block;width:100%;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:13px;margin:9px 0 20px}.bank-actions button:disabled{opacity:.6;cursor:wait}@media(max-width:700px){.club-bank{margin-top:35px}.bank-badge{margin-top:17px}.bank-balances{grid-template-columns:1fr}.bank-panel{padding:21px}}
 .bank-account-form .bank-consent{display:flex;align-items:flex-start;gap:10px;margin:0 0 20px}.bank-consent input{margin-top:5px;accent-color:var(--wine)}
 
 /* Inloggningsstatus och utloggning i det gemensamma sidhuvudet. */
-.site-header{height:auto;min-height:112px;gap:24px;padding-block:20px}
-.header-right{display:flex;align-items:center;justify-content:flex-end;gap:30px}
-.header-account{display:flex;align-items:center;gap:16px;padding-left:24px;border-left:1px solid var(--line)}
+.site-header{height:auto;min-height:112px;display:grid;grid-template-columns:160px minmax(0,1fr);gap:24px;padding-block:20px}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:14px;min-width:0}
+.header-account{display:flex;align-items:center;justify-content:flex-end;gap:16px;max-width:100%}
 .header-status{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;line-height:1.4}
 .header-status small{display:block;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:400;color:var(--muted)}
 .status-dot{width:7px;height:7px;flex-shrink:0;border-radius:50%;background:#5b7d60}
 .header-account form{margin:0}
-.header-logout{font:inherit;font-size:12px;font-weight:500;white-space:nowrap;background:var(--wine);color:var(--paper);border:1px solid var(--wine);border-radius:4px;padding:11px 16px;cursor:pointer}
-.header-logout:hover{background:#822d48}
-@media(max-width:900px){.header-right{gap:20px}.header-right nav{gap:20px}.header-account{gap:12px;padding-left:18px}.header-status small{max-width:100px}}
-@media(max-width:700px){.site-header{min-height:90px;padding-block:18px;gap:16px}.site-header--signed-in{flex-wrap:wrap}.site-header--signed-in .header-right{flex:1 1 100%;justify-content:space-between;gap:12px}.header-account{border-left:0;padding-left:0;gap:10px}.header-status{font-size:11px;gap:6px}.header-status small{max-width:85px}.header-logout{font-size:11px;padding:10px 12px}.header-right nav{gap:16px}}
-@media(max-width:380px){.header-status small{max-width:65px}.header-right nav{gap:12px}.header-account{gap:8px}}
+.button--small{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:10px;line-height:1.4;padding:7px 12px}
+.header-logout{white-space:nowrap}
+@media(max-width:700px){.site-header{grid-template-columns:104px minmax(0,1fr);min-height:90px;padding-block:16px;gap:12px}.site-header .brand--image{align-self:start}.header-right{gap:14px}.header-right nav{gap:16px}.header-account{flex-wrap:wrap;gap:8px}.header-account form{flex-basis:100%;text-align:right}.header-status{font-size:11px;gap:6px}.header-status small{max-width:145px}}
+@media(max-width:380px){.header-right nav{gap:12px}}
 
 /* Kompakt klubbkassa överst, med automatisk saldouppdatering. */
 .club-main:has(.club-bank--compact){padding-top:28px}
 .club-bank--compact{margin-top:0;border:1px solid var(--line);border-radius:10px;background:#fffcf6;padding:18px 22px}
 .bank-topline{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}
-.club-bank--compact h2{font-family:'DM Sans',Arial,sans-serif;font-size:17px;font-weight:600;letter-spacing:-.3px;line-height:1.4}
+.club-bank--compact h2,.calendar-heading h2{font-family:'DM Sans',Arial,sans-serif;font-size:17px;font-weight:600;letter-spacing:-.3px;line-height:1.4}
 .club-bank--compact .bank-badge{font-size:10px;padding:5px 10px;background:var(--paper);margin:0}
 .club-bank--compact #bank-status{font-size:11px;color:var(--muted);line-height:1.5;margin:0 0 12px}
 .club-bank--compact .bank-balances{display:flex;flex-wrap:wrap;gap:14px 32px}
@@ -84,8 +81,8 @@
 .club-bank--compact .bank-actions .button{font-size:10px;padding:8px 12px;gap:10px}
 .club-bank--compact .club-message{padding:10px 12px;margin:10px 0;font-size:12px}
 .club-bank--compact .bank-account-form{margin-top:12px}
-/* Den nya logotypen ligger i sidhuvudets högra kant. */
-.site-header .brand--image{flex:0 0 160px;width:160px;display:block}
+/* Gemensam logotyp till vänster i sidhuvudet och sidfoten. */
+.site-header .brand--image{width:100%;display:block}
 .brand--image img{display:block;width:100%;height:auto}
-.site-header .header-right{flex:1;min-width:0;justify-content:space-between}
-@media(max-width:700px){.site-header{align-items:center;gap:12px}.site-header .brand--image{flex-basis:120px;width:120px}.site-header .header-right{flex:1;flex-wrap:wrap;justify-content:flex-start;gap:12px}.header-account{flex-basis:100%}.club-bank--compact{padding:15px 16px}.club-main:has(.club-bank--compact){padding-top:22px}.club-bank--compact .bank-balances{gap:12px 24px}.club-bank--compact .bank-amount{font-size:20px}.club-bank--compact .bank-balance:first-child .bank-amount{font-size:24px}}
+footer .brand--image{display:block;width:120px;flex-shrink:0}
+@media(max-width:700px){footer .brand--image{width:104px}.club-bank--compact{padding:15px 16px}.club-main:has(.club-bank--compact){padding-top:22px}.club-bank--compact .bank-balances{gap:12px 24px}.club-bank--compact .bank-amount{font-size:20px}.club-bank--compact .bank-balance:first-child .bank-amount{font-size:24px}}

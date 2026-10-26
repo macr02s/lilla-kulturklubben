@@ -19,19 +19,18 @@
       <p id="bank-status" role="status" aria-live="polite">Hämtar saldo…</p>
       <div id="bank-balances" class="bank-balances"></div>
       <div id="bank-accounts"></div>
-      <div class="bank-foot"><p id="bank-checked" class="calendar-note"></p><div class="bank-actions"><button id="bank-refresh" class="filter-button" type="button">Uppdatera</button>
+      <div class="bank-foot"><p id="bank-checked" class="calendar-note"></p><div class="bank-actions"><button id="bank-refresh" class="filter-button button--small" type="button">Uppdatera</button>
       {% if bank_admin %}<form id="bank-connect" action="{{ url_for('bank.connect') }}" method="post" hidden><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button" type="submit"><span id="bank-connect-label">Anslut Nordea</span> <span aria-hidden="true">↗</span></button></form>{% endif %}</div></div>
       {% if bank_mode == 'SANDBOX' %}<p class="calendar-note">Testuppgifter från bankens sandbox, inte riktiga pengar.</p>{% endif %}
       <noscript><p>Aktivera JavaScript för att hämta saldot automatiskt.</p></noscript>
     </section>
     <section class="club-calendar" aria-labelledby="calendar-title">
       <div class="calendar-heading">
-        <div><p class="eyebrow">VÅRA GEMENSAMMA PLANER</p><h2 id="calendar-title">Nästa gång vi ses.</h2><p>Klubbens träffar och kulturupplevelser, samlade på ett ställe.</p></div>
-        {% if calendar %}<a class="button" href="{{ calendar.open_url }}" target="_blank" rel="noopener noreferrer">Öppna i Google Kalender <span aria-hidden="true">↗</span></a>{% endif %}
+        <h2 id="calendar-title">Vår gemensamma kalender</h2>
       </div>
       {% if calendar %}
       <div class="calendar-frame"><iframe src="{{ calendar.embed_url }}" title="Lilla kulturklubbens gemensamma kalender" width="1000" height="640" loading="lazy" referrerpolicy="no-referrer"></iframe></div>
-      <p class="calendar-note">Tider visas i Stockholms tidszon. Om kalendern inte visas här, öppna den via knappen ovan och välj det Google-konto som kalendern är delad med. Lägg till och ändra träffar i Google Kalender.</p>
+      <div class="calendar-actions"><a class="filter-button button--small" href="{{ calendar.open_url }}" target="_blank" rel="noopener noreferrer">Öppna i Google Kalender <span aria-hidden="true">↗</span></a></div>
       {% else %}
       <p class="club-message">Vår gemensamma kalender kopplas in snart.</p>
       {% endif %}
@@ -53,7 +52,7 @@
     </section>
     {% endif %}
   </main>
-  <footer class="wrap"><a class="brand" href="{{ url_for('home') }}"><b>k.</b><span>Lilla<br>kulturklubben</span></a><p>Kultur är bättre tillsammans.</p><a href="{{ url_for('home') }}">Till startsidan ↗</a></footer>
+  <footer class="wrap"><a class="brand brand--image" href="{{ url_for('home') }}"><img src="{{ url_for('static', filename='lilla-kulturklubben-logo-320px.webp') }}" alt="Lilla kulturklubben – startsida" width="320" height="180" loading="lazy"></a><p>Kultur är bättre tillsammans.</p><a href="{{ url_for('home') }}">Till startsidan ↗</a></footer>
   {% if member %}<script src="{{ url_for('static', filename='bank.js') }}" defer></script>{% endif %}
 </body>
 </html>
