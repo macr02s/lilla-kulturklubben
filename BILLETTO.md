@@ -77,8 +77,11 @@ kategorier visas under Övrigt.
 
 ## Cache, fel och avgränsningar
 
-Första sidan visas stegvis med Visit Stockholm först när den källan är
-vald. Övriga valda leverantörer fyller sedan på samma lista. Leverantörs-
+Första sidan visar en snabb förhandsvisning från Visit Stockholm när den
+källan är vald. Den behöver bara en API-sida innan de första korten
+visas; den fulla katalogen laddas efteråt. Parametern `preview=1` godtas
+bara för Visit Stockholm med sida 1. Förhandsvisningens antal är
+preliminärt och **Visa fler** aktiveras efter den kompletta hämtningen. Övriga valda leverantörer fyller sedan på samma lista. Leverantörs-
 kataloger delar en separat cache med högst 48 poster per process. Identiska
 pågående hämtningar återanvänds och andra sökningar blockeras inte av
 ett globalt nätverkslås. Fel eller ofullständiga kataloger prövas igen

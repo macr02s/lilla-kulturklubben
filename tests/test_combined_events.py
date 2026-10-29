@@ -22,6 +22,58 @@ class CombinedEventsTests(TestCase):
     def setUp(self):
         combined._cache.clear()
         combined._provider_cache.clear()
+        combined.visit._cache.clear()
+
+    @patch.object(combined.visit,'_fetch')
+    def test_preview_fetches_only_first_visit_page_and_reuses_it_for_full_catalog(self, fetch):
+        def response(params):
+            number=params['page']
+            return {'meta':{'categories':[]},'count':500,'next':2 if number==1 else None,
+                    'results':[{'id':str(number),'title':'Concert '+str(number),'href':'/event/concert-'+str(number)+'/',
+                                'city':'Stockholm','venue_name':'Venue','category':{'title':'Musik'},
+                                'start_date':'2027-03-15','end_date':'2027-03-15'}]}
+        fetch.side_effect=response
+        client=app.test_client()
+        query='?sources=visit-stockholm&from_month=2027-01&to_month=2027-03'
+        preview=client.get('/api/combined-events'+query+'&preview=1')
+        self.assertEqual(preview.status_code,200)
+        self.assertTrue(preview.get_json()['preview'])
+        self.assertEqual(preview.get_json()['count'],1)
+        self.assertTrue(preview.get_json()['truncated'])
+        fetch.assert_called_once_with({'page':1,'size':100,'date_from':'2027-01-01','date_to':'2027-03-31'})
+        complete=client.get('/api/combined-events'+query).get_json()
+        self.assertEqual(complete['count'],2)
+        self.assertNotIn('preview',complete)
+        self.assertEqual(fetch.call_count,2)
+
+    @patch.object(combined,'get_events')
+    def test_preview_only_accepts_visit_first_page(self, fetch):
+        client=app.test_client()
+        for query in ('sources=ticketmaster&preview=1','sources=visit-stockholm&page=2&preview=1',
+                      'preview=1','sources=visit-stockholm&preview=invalid'):
+            self.assertEqual(client.get('/api/combined-events?'+query).status_code,400)
+        fetch.assert_not_called()
+
+    @patch.object(combined.visit,'_fetch')
+    def test_slow_visit_page_does_not_hold_other_visit_queries(self, fetch):
+        started,release=Event(),Event()
+        def response(params):
+            if params['page']==2:
+                started.set()
+                if not release.wait(3):raise AssertionError('Slow page was not released')
+            return {'meta':{'categories':[]},'results':[],'count':0,'next':None}
+        fetch.side_effect=response
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            slow=executor.submit(combined.visit.get_events,page=2)
+            try:
+                self.assertTrue(started.wait(1))
+                fast=executor.submit(combined.visit.get_events,page=1)
+                self.assertEqual(fast.result(timeout=1)['events'],[])
+                self.assertFalse(slow.done())
+            finally:
+                release.set()
+            slow.result(timeout=1)
+        self.assertEqual(combined.visit._fills,{})
 
 
     @patch.object(combined,'_kulturbiljetter_catalog')

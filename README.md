@@ -75,8 +75,12 @@ För Tickster och Kulturbiljetter, se [åtkomst och konfiguration](TICKSTER_KULT
 
 ## Gemensamt flöde på startsidan
 
-Nya sökningar laddas stegvis: Visit Stockholm visas först om den är vald,
-därefter läggs övriga valda källor till. Varje steg ersätter listan med
+Nya sökningar laddas stegvis: en förhandsvisning från Visit Stockholm
+visas först om källan är vald. Den hämtar bara en API-sida (100 poster,
+som Stockholm-filtreras och ger högst nio synliga kort),
+därefter hämtas den fulla Visit Stockholm-katalogen och övriga valda källor.
+Förhandsvisningen delar cache för första API-sidan med den fulla hämtningen.
+Om bara Visit Stockholm är valt följs förhandsvisningen av dess fulla katalog. Varje steg ersätter listan med
 ett nytt sammanslaget resultat, så matchande evenemang visas en gång och
 biljettlänken kan uppdateras när en direkt biljettkälla blir tillgänglig.
 **Visa fler** använder det kompletta aktuella urvalet när stegen är klara.

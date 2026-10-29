@@ -130,7 +130,8 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     more.hidden = Boolean(remaining.length) || !next;
     const title = allCategories.find(item => item.slug === category)?.title;
     const eventLabel = data.combined ? (data.count === 1 ? 'unikt evenemang' : 'unika evenemang') : 'evenemang';
-    status.textContent = !selectedSources.length ? 'Välj minst en leverantör för att visa evenemang.' : data.count === 0 ? 'Inga evenemang hittades för dina val.' :
+    status.textContent = !selectedSources.length ? 'Välj minst en leverantör för att visa evenemang.' : data.count === 0 ?
+      (remaining.length ? 'Sökningen pågår…' : 'Inga evenemang hittades för dina val.') :
       `${data.count} ${eventLabel}${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
     if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
     if (data.truncated) status.textContent += ' · Del av utbudet visas.';
@@ -148,7 +149,8 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     const chosen = selectedSources.includes('visit-stockholm') ?
       ['visit-stockholm', ...selectedSources.filter(slug => slug !== 'visit-stockholm')] : [...selectedSources];
     const stages = page === 1 && progressive && chosen.length ?
-      chosen.map((_, index) => chosen.slice(0, index + 1)) : [chosen];
+      chosen.map((_, index) => ({sources: chosen.slice(0, index + 1), preview: index === 0 && chosen[0] === 'visit-stockholm'})) : [{sources: chosen, preview: false}];
+    if (stages.length === 1 && stages[0].preview) stages.push({sources: chosen, preview: false});
     const query = new URLSearchParams({category, subcategory, page});
     if (fromMonth) {
       query.set('from_month', fromMonth);
@@ -164,12 +166,13 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       results.replaceChildren();
       more.hidden = true;
     }
-    status.textContent = page === 1 && stages[0].length === 1 ?
-      'Hämtar ' + (sourceInputs.find(input => input.value === stages[0][0])?.closest('label').textContent.trim() || stages[0][0]) + '…' : 'Hämtar evenemang…';
+    status.textContent = page === 1 && stages[0].sources.length === 1 ?
+      'Hämtar ' + (sourceInputs.find(input => input.value === stages[0].sources[0])?.closest('label').textContent.trim() || stages[0].sources[0]) + '…' : 'Hämtar evenemang…';
     try {
       for (let index = 0; index < stages.length; index++) {
         if (current !== controller || current.signal.aborted) return;
-        query.set('sources', stages[index].join(','));
+        query.set('sources', stages[index].sources.join(','));
+        query.set('preview', stages[index].preview ? '1' : '0');
         const attempt = new AbortController();
         const cancel = () => attempt.abort(current.signal.reason);
         current.signal.addEventListener('abort', cancel, {once: true});
@@ -179,7 +182,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
           const data = await response.json();
           if (!response.ok) throw new Error(data.error);
           if (current !== controller || current.signal.aborted) return;
-          const remaining = chosen.slice(stages[index].length);
+          const remaining = stages[index].preview ? chosen : chosen.slice(stages[index].sources.length);
           show(data, page, remaining);
           shown = true;
           complete = index === stages.length - 1;

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import gzip
 import json
 from threading import Lock
+from concurrent.futures import Future
 from time import monotonic
 from urllib.error import URLError
 from urllib.parse import urlencode, urljoin, urlsplit
@@ -15,6 +16,7 @@ TTL = 600
 STALE_TTL = 3600
 _cache = OrderedDict()
 _lock = Lock()
+_fills = {}
 
 
 class SourceUnavailable(Exception):
@@ -49,12 +51,18 @@ def get_events(category="", subcategory="", page=1, start_date="", end_date="", 
         key += (start_date, end_date)
     if page_size != 9:
         key += (page_size,)
-    # Serialize cache fills to avoid sending duplicate requests under load.
     with _lock:
         cached = _cache.get(key)
         if cached and monotonic() - cached[0] < TTL:
             _cache.move_to_end(key)
             return deepcopy(cached[1])
+        future = _fills.get(key)
+        owner = future is None
+        if owner:
+            future = _fills[key] = Future()
+    if not owner:
+        return deepcopy(future.result())
+    try:
         params = {"page": page, "size": page_size}
         if start_date:
             params.update(date_from=start_date, date_to=end_date)
@@ -94,10 +102,20 @@ def get_events(category="", subcategory="", page=1, start_date="", end_date="", 
             if cached and monotonic() - cached[0] < STALE_TTL:
                 fallback = deepcopy(cached[1])
                 fallback["stale"] = True
+                future.set_result(fallback)
                 return fallback
             raise SourceUnavailable() from exc
-        _cache[key] = (monotonic(), data)
-        _cache.move_to_end(key)
-        while len(_cache) > 128:
-            _cache.popitem(last=False)
+        with _lock:
+            _cache[key] = (monotonic(), data)
+            _cache.move_to_end(key)
+            while len(_cache) > 128:
+                _cache.popitem(last=False)
+        future.set_result(data)
         return deepcopy(data)
+    except BaseException as error:
+        future.set_exception(error)
+        raise
+    finally:
+        with _lock:
+            if _fills.get(key) is future:
+                del _fills[key]

@@ -231,6 +231,10 @@ def _catalog(settings, start_date, end_date, selected_sources=None):
                     items.append(event)
     if jobs and not successful:
         raise SourceUnavailable()
+    return _finish_catalog(items, successful, unavailable, pending, truncated, stale)
+
+
+def _finish_catalog(items, successful, unavailable=None, pending=None, truncated=False, stale=False):
     events = deduplicate(items)
     categories = {}
     for event in events:
@@ -240,13 +244,34 @@ def _catalog(settings, start_date, end_date, selected_sources=None):
     return {"events": events, "categories": [{"slug": slug, "title": LABELS[slug], "subcategories": [
         {"slug": child, "title": title} for child, title in sorted(children.items(), key=lambda i: i[1])]}
         for slug, children in sorted(categories.items(), key=lambda i: LABELS[i[0]])],
-        "unavailable_sources": unavailable, "pending_sources": pending, "sources": successful, "stale": stale, "truncated": truncated,
+        "unavailable_sources": unavailable or [], "pending_sources": pending or [], "sources": successful, "stale": stale, "truncated": truncated,
         "combined": True, "updated": datetime.now(timezone.utc).isoformat()}
 
 
-def get_events(settings, category="", subcategory="", page=1, start_date="", end_date="", selected_sources=None):
+def _visit_preview(start_date, end_date):
+    try:
+        raw = visit.get_events(page=1, start_date=start_date, end_date=end_date, page_size=100)
+    except SOURCE_ERRORS:
+        raise SourceUnavailable() from None
+    today = datetime.now(ZoneInfo("Europe/Stockholm")).date().isoformat()
+    items = []
+    for item in raw["events"]:
+        event = normalize(item, "Visit Stockholm")
+        if event and event["end"] >= (start_date or today) and (not end_date or event["start"] <= end_date):
+            items.append(event)
+    data = _finish_catalog(items, ["Visit Stockholm"], truncated=bool(raw["next"]), stale=raw.get("stale", False))
+    data["preview"] = True
+    return data
+
+
+def get_events(settings, category="", subcategory="", page=1, start_date="", end_date="", selected_sources=None, preview=False):
     selected = tuple(providers(settings, selected_sources))
     key = (_credentials(settings), start_date, end_date, selected)
+    if preview:
+        if selected != ("Visit Stockholm",) or page != 1:
+            raise ValueError("Preview is only available for Visit Stockholm's first page")
+        data = _cached_value(_cache, _fills, key + ("preview",), lambda: _visit_preview(start_date, end_date), 16, cache_stale=False)
+        return _page(data, category, subcategory, page, selected)
     with _lock:
         cached = _cache.get(key)
     def load():
@@ -260,6 +285,10 @@ def get_events(settings, category="", subcategory="", page=1, start_date="", end
             data["unavailable_sources"] = list(selected)
             return data
     data = _cached_value(_cache, _fills, key, load, 16, cache_stale=False)
+    return _page(data, category, subcategory, page, selected)
+
+
+def _page(data, category, subcategory, page, selected):
     items = [e for e in data["events"] if (not category or e["category_id"] == category)
              and (not subcategory or e["genre_id"] == subcategory)]
     offset = (page - 1) * 9

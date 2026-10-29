@@ -64,10 +64,14 @@ def combined_events():
     try:
         filters = parse_filters(request.args)
         sources = parse_sources(request.args)
+        preview = request.args.get("preview", "0")
+        if preview not in {"0", "1"} or (preview == "1" and (sources != ("Visit Stockholm",) or filters[2] != 1)):
+            raise ValueError()
     except ValueError:
         return jsonify(error="Kontrollera kategori, sida och månadsperiod."), 400
     try:
-        return jsonify(club_events.get_events(app.config, *filters, selected_sources=sources))
+        options = {"preview": True} if preview == "1" else {}
+        return jsonify(club_events.get_events(app.config, *filters, selected_sources=sources, **options))
     except club_events.SourceUnavailable:
         return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
 
