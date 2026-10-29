@@ -99,8 +99,12 @@ det verifierade svenska anropet. Listans `has_more` och sista evenemangets
 ID används för nästa anrop med `after=ID`.
 
 Billetto-datum konverteras till Europe/Stockholm med tidszonsdatabasen,
-inklusive sommartid. Billetto-bilder används inte ännu, eftersom deras
-publiceringsdokumentation ber om återpublicering från egen bildlagring.
+inklusive sommartid. Billetto-bilder hämtas från API-fältet `image_link`. Bildlänkarna
+översätts till signerade adresser under `/images/billetto/` så att bilden
+serveras från vår egen Flask-server enligt publiceringsdokumentationen.
+Ingen bild laddas ned under kataloghämtningen; kortets lazy loading startar
+bildanropet när det behövs. En Billetto-bild kan också fylla en saknad
+bild på ett kort som har slagits ihop med en annan källa.
 Alla UTM-parametrar i Billetto-länkar bevaras. Vi skapar inga lokala kopior
 av Billettos eventsidor. Om egna detaljsidor byggs behöver även deras
 canonical-krav hanteras för dessa sidor. Kontrollera deras aktuella villkor
@@ -115,9 +119,27 @@ Stockholm-filter, hela sidbläddringen och det gemensamma flödet. Det verkliga
 svaret använder `location.location_name` och `categorization`, vilka
 stöds tillsammans med dokumentationens tidigare fältnamn. Saknat platsnamn
 gör att en post inte matchas mot en annan källas post, även när staden är
-bekräftad. Billetto-bilder är fortfarande inte aktiverade.
+bekräftad. Billetto-bilder är verifierade i riktiga evenemangskort via den egna
+bildcachen, inklusive villkorlig HTTP-hämtning (304).
 
 Källor: [offentliga evenemang](https://api.billetto.com/reference/list-public-events),
 [publiceringskrav](https://api.billetto.com/docs/requirements),
 [platsfält](https://api.billetto.com/reference/location),
 [sidbläddring](https://api.billetto.com/docs/pagination).
+
+## Billetto-bildcache
+
+`billetto_images.py` verifierar signerade bildadresser och accepterar endast
+HTTPS från den verifierade bildhosten `billetto.imgix.net`. Omdirigeringar
+följs inte. API-nycklar och besökarens cookies skickas aldrig till bildhosten.
+Bildfiler sparas atomiskt i `instance/event-images/billetto/`, som redan
+är undantagen från Git. Giltig JPEG, PNG, WebP eller GIF kontrolleras via
+filens signatur; HTML och SVG accepteras inte. Högst 5 MiB per bild hämtas.
+
+Cachen gäller ett dygn och begränsas till 256 filer och 128 MiB. Endast
+appens egna hash-namngivna cachefiler städas. Samtidiga anrop för samma bild
+delar nedladdning inom processen. Svaren har innehållstyp, nosniff och ETag
+för villkorlig HTTP-cache. Ett fel ger 404 och kortets befintliga reservbild.
+Cachefilerna är tillfälliga på Render Free och kan hämtas på nytt efter
+omstart. Ingen ny miljövariabel krävs; appens befintliga `SECRET_KEY`
+används med en separat signeringssalt för de publika bildadresserna.

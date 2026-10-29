@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlsplit
 from zoneinfo import ZoneInfo
 
 import requests
+from billetto_images import image_url
 
 API = "https://billetto.se/api/v3/public/events"
 
@@ -45,7 +46,7 @@ def normalize(raw):
     if isinstance(category, dict):
         category = category.get("name") or ""
     return {"id": str(raw.get("id") or url), "title": raw["title"], "url": url,
-            "image": "", "alt": raw["title"], "credit": "",  # Publisher banners require rehosting.
+            "image": image_url(raw.get("image_link")), "alt": raw["title"], "credit": "",
             "category": category or "Övrigt", "venue": location.get("location_name") or location.get("name") or "",
             "genre": categorisation.get("subcategory_localized") or categorisation.get("subcategory") or "",
             "city": "Stockholm", "start": start.date().isoformat(),

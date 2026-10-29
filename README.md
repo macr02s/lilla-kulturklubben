@@ -71,6 +71,9 @@ Vid avbrott kan tidigare hämtade uppgifter visas i upp till en timme med en
 tydlig markering. Utan nyckel visas ett fel i evenemangsdelen; resten av
 webbplatsen fungerar. Anpassningen finns i `ticketmaster_events.py`.
 
+Billetto-bilder serveras via en egen diskcache och hämtas först när
+korten visas. Se [bildcache och publicering](BILLETTO.md).
+
 För Tickster och Kulturbiljetter, se [åtkomst och konfiguration](TICKSTER_KULTURBILJETTER.md).
 
 ## Gemensamt flöde på startsidan

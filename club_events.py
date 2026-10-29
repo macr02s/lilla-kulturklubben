@@ -15,6 +15,7 @@ import ticketmaster_events as ticketmaster
 import visit_stockholm as visit
 import tickster_events as tickster
 import kulturbiljetter_events as kulturbiljetter
+from billetto_images import image_url as billetto_image_url
 
 _cache, _lock = OrderedDict(), Lock()
 _fills = {}
@@ -120,7 +121,7 @@ def normalize(raw, source):
     if not isinstance(clock, str) or not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", clock):
         clock = ""
     image = raw.get("image") or ""
-    image = visit.source_url(image) if source == "Visit Stockholm" else ticketmaster.source_url(image, image=True) if source == "Ticketmaster" else kulturbiljetter.source_url(image) if source == "Kulturbiljetter" else ""
+    image = visit.source_url(image) if source == "Visit Stockholm" else ticketmaster.source_url(image, image=True) if source == "Ticketmaster" else kulturbiljetter.source_url(image) if source == "Kulturbiljetter" else billetto_image_url(image) if source == "Billetto" else ""
     category = category_id(raw.get("category"))
     return {"title": title, "url": url, "venue": venue, "city": "Stockholm", "start": start, "end": end,
             "time": clock, "category_id": category, "category": LABELS[category], "genre": str(raw.get("genre") or ""),

@@ -12,6 +12,7 @@ import ticketmaster_events as ticketmaster
 from event_months import month_range
 from event_query import parse_filters, parse_sources, SOURCE_NAMES
 import club_events
+from billetto_images import init_images, prepare_images
 
 runtime_env = runtime_environment(os.environ, Path(__file__).with_name(".env"))
 mimetypes.add_type("image/webp", ".webp")
@@ -23,6 +24,7 @@ app.config["TICKSTER_API_KEY"] = runtime_env.get("TICKSTER_API_KEY", "").strip()
 app.config["KULTURBILJETTER_API_KEY"] = runtime_env.get("KULTURBILJETTER_API_KEY", "").strip()
 init_auth(app)
 init_banking(app)
+init_images(app)
 
 missing_auth = [key for key in ("SECRET_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CLUB_MEMBERS")
                 if not str(app.config.get(key) or "").strip()]
@@ -71,7 +73,7 @@ def combined_events():
         return jsonify(error="Kontrollera kategori, sida och månadsperiod."), 400
     try:
         options = {"preview": True} if preview == "1" else {}
-        return jsonify(club_events.get_events(app.config, *filters, selected_sources=sources, **options))
+        return jsonify(prepare_images(club_events.get_events(app.config, *filters, selected_sources=sources, **options)))
     except club_events.SourceUnavailable:
         return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
 
