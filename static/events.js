@@ -28,6 +28,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   function filter(label, slug, selected, select) {
     const button = node('button', label, 'filter-button');
     button.type = 'button';
+    button.dataset.value = slug;
     button.setAttribute('aria-pressed', String(selected));
     button.addEventListener('click', () => select(slug));
     return button;
@@ -76,6 +77,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   function card(event) {
     const link = node('a', '', 'event-card');
     link.href = event.url;
+    link.dataset.eventId = event.id || [event.url, event.start, event.time || ''].join('|');
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     if (event.image) {
@@ -101,66 +103,109 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
     return link;
   }
 
-  async function load(page) {
+  function show(data, page, remaining) {
+    const changedCategories = JSON.stringify(allCategories) !== JSON.stringify(data.categories);
+    allCategories = data.categories;
+    catalogUpdating = Boolean(data.pending_sources?.length || data.unavailable_sources?.length);
+    lastRefresh = Date.now();
+    // Keep the controls stable while visitors navigate with a keyboard.
+    if (!categories.children.length || filtersNeedRefresh || changedCategories) {
+      const active = document.activeElement;
+      const owner = categories.contains(active) ? categories : subcategories.contains(active) ? subcategories : null;
+      const value = active?.dataset.value;
+      renderFilters();
+      if (owner && value !== undefined) [...owner.children].find(button => button.dataset.value === value)?.focus({preventScroll: true});
+      filtersNeedRefresh = false;
+    }
+    if (page === 1) results.replaceChildren();
+    const existing = new Set([...results.children].map(element => element.dataset.eventId));
+    for (const event of data.events) {
+      const element = card(event);
+      if (!existing.has(element.dataset.eventId)) {
+        results.append(element);
+        existing.add(element.dataset.eventId);
+      }
+    }
+    next = data.next;
+    more.hidden = Boolean(remaining.length) || !next;
+    const title = allCategories.find(item => item.slug === category)?.title;
+    const eventLabel = data.combined ? (data.count === 1 ? 'unikt evenemang' : 'unika evenemang') : 'evenemang';
+    status.textContent = !selectedSources.length ? 'Välj minst en leverantör för att visa evenemang.' : data.count === 0 ? 'Inga evenemang hittades för dina val.' :
+      `${data.count} ${eventLabel}${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
+    if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
+    if (data.truncated) status.textContent += ' · Del av utbudet visas.';
+    if (data.pending_sources?.length) status.textContent += ' · Utbudet från ' + data.pending_sources.join(', ') + ' uppdateras.';
+    if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';
+    if (data.unavailable_sources?.length) status.textContent += ' · Tillfälligt saknas utbud från ' + data.unavailable_sources.join(', ') + '.';
+    if (remaining.length) status.textContent += ' · Hämtar fler från ' + remaining.map(slug => sourceInputs.find(input => input.value === slug)?.closest('label').textContent.trim() || slug).join(', ') + '…';
+  }
+
+  async function load(page, progressive = true) {
     lastRefresh = Date.now();
     controller?.abort();
     controller = new AbortController();
     const current = controller;
-    const timeout = setTimeout(() => current.abort('timeout'), 30000);
-    failedPage = page;
-    pending = true;
-    results.setAttribute('aria-busy', 'true');
-    retry.hidden = true;
-    more.disabled = true;
-    if (page === 1) {
-      results.replaceChildren();
-      more.hidden = true;
-    }
-    status.textContent = 'Hämtar evenemang…';
+    const chosen = selectedSources.includes('visit-stockholm') ?
+      ['visit-stockholm', ...selectedSources.filter(slug => slug !== 'visit-stockholm')] : [...selectedSources];
+    const stages = page === 1 && progressive && chosen.length ?
+      chosen.map((_, index) => chosen.slice(0, index + 1)) : [chosen];
     const query = new URLSearchParams({category, subcategory, page});
-    query.set('sources', selectedSources.join(','));
     if (fromMonth) {
       query.set('from_month', fromMonth);
       query.set('to_month', toMonth);
     }
-    try {
-      const response = await fetch(`${section.dataset.endpoint}?${query}`, {signal: current.signal});
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      if (current !== controller) return;
-      allCategories = data.categories;
-      catalogUpdating = Boolean(data.pending_sources?.length);
-      lastRefresh = Date.now();
-      // Keep the controls stable while visitors navigate with a keyboard.
-      if (!categories.children.length || filtersNeedRefresh) {
-        renderFilters();
-        filtersNeedRefresh = false;
-      }
-      for (const event of data.events) results.append(card(event));
-      next = data.next;
-      more.hidden = !next;
-      const title = allCategories.find(item => item.slug === category)?.title;
-      const eventLabel = data.combined ? (data.count === 1 ? 'unikt evenemang' : 'unika evenemang') : 'evenemang';
-      status.textContent = !selectedSources.length ? 'Välj minst en leverantör för att visa evenemang.' : data.count === 0 ? 'Inga evenemang hittades för dina val.' :
-        `${data.count} ${eventLabel}${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
-      if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
-      if (data.truncated) status.textContent += ' · Del av utbudet visas.';
-      if (data.pending_sources?.length) status.textContent += ' · Utbudet från ' + data.pending_sources.join(', ') + ' uppdateras.';
-      if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';
-      if (data.unavailable_sources?.length) status.textContent += ' · Tillfälligt saknas utbud från ' + data.unavailable_sources.join(', ') + '.';
-    } catch (error) {
-      if (current !== controller) return;
-      status.textContent = section.querySelector('.section-title .text-link') ?
-        `Evenemangen kunde inte hämtas just nu. Försök igen eller besök ${sourceName} via länken ovan.` :
-        'Evenemangen kunde inte hämtas just nu. Försök igen om en stund.';
-      retry.hidden = false;
+    failedPage = page;
+    pending = true;
+    let shown = false, complete = false;
+    results.setAttribute('aria-busy', 'true');
+    retry.hidden = true;
+    more.disabled = true;
+    if (page === 1 && progressive) {
+      results.replaceChildren();
       more.hidden = true;
+    }
+    status.textContent = page === 1 && stages[0].length === 1 ?
+      'Hämtar ' + (sourceInputs.find(input => input.value === stages[0][0])?.closest('label').textContent.trim() || stages[0][0]) + '…' : 'Hämtar evenemang…';
+    try {
+      for (let index = 0; index < stages.length; index++) {
+        if (current !== controller || current.signal.aborted) return;
+        query.set('sources', stages[index].join(','));
+        const attempt = new AbortController();
+        const cancel = () => attempt.abort(current.signal.reason);
+        current.signal.addEventListener('abort', cancel, {once: true});
+        const timeout = setTimeout(() => attempt.abort('timeout'), 30000);
+        try {
+          const response = await fetch(`${section.dataset.endpoint}?${query}`, {signal: attempt.signal});
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error);
+          if (current !== controller || current.signal.aborted) return;
+          const remaining = chosen.slice(stages[index].length);
+          show(data, page, remaining);
+          shown = true;
+          complete = index === stages.length - 1;
+          // Give the browser a chance to display the first source before fetching the rest.
+          if (remaining.length) await new Promise(resolve => setTimeout(resolve, 0));
+        } catch (error) {
+          if (current !== controller || current.signal.aborted) return;
+          if (index < stages.length - 1) {
+            if (!shown) status.textContent = 'Den första källan kunde inte hämtas. Hämtar övriga leverantörer…';
+            continue;
+          }
+          status.textContent = shown ? status.textContent + ' · Alla leverantörer kunde inte laddas. Försök igen.' :
+            'Evenemangen kunde inte uppdateras just nu. Försök igen om en stund.';
+          retry.hidden = false;
+          more.hidden = true;
+        } finally {
+          clearTimeout(timeout);
+          current.signal.removeEventListener('abort', cancel);
+        }
+      }
     } finally {
-      clearTimeout(timeout);
       if (current === controller) {
         pending = false;
         results.setAttribute('aria-busy', 'false');
         more.disabled = false;
+        if (!complete) more.hidden = true;
       }
     }
   }
@@ -197,7 +242,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   retry.addEventListener('click', () => load(failedPage));
   // Refresh visible results without interrupting an ongoing request.
   setInterval(() => {
-    if (!document.hidden && !pending && Date.now() - lastRefresh >= (catalogUpdating ? 60 * 1000 : 10 * 60 * 1000)) load(1);
+    if (!document.hidden && !pending && Date.now() - lastRefresh >= (catalogUpdating ? 60 * 1000 : 10 * 60 * 1000)) load(1, false);
   }, 60 * 1000);
   load(1);
 });

@@ -130,6 +130,7 @@ class KulturbiljetterTests(TestCase):
 class NewProviderIntegrationTests(TestCase):
     def setUp(self):
         combined._cache.clear()
+        combined._provider_cache.clear()
 
     @patch.object(combined,'_tickster_catalog')
     @patch.object(combined,'_kulturbiljetter_catalog')

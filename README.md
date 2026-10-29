@@ -75,6 +75,19 @@ För Tickster och Kulturbiljetter, se [åtkomst och konfiguration](TICKSTER_KULT
 
 ## Gemensamt flöde på startsidan
 
+Nya sökningar laddas stegvis: Visit Stockholm visas först om den är vald,
+därefter läggs övriga valda källor till. Varje steg ersätter listan med
+ett nytt sammanslaget resultat, så matchande evenemang visas en gång och
+biljettlänken kan uppdateras när en direkt biljettkälla blir tillgänglig.
+**Visa fler** använder det kompletta aktuella urvalet när stegen är klara.
+Automatiska uppdateringar behåller befintliga kort tills ett nytt svar finns.
+
+Leverantörskatalogerna cachelagras separat från de sammanslagna urvalen.
+Ett nytt urval kan därför återanvända redan hämtade leverantörer.
+Samtidiga identiska hämtningar delar arbete, medan en långsam källa inte
+håller ett globalt lås under nätverksanrop. Leverantörsfel sparas kort
+för att samma felande källa inte ska anropas på nytt för varje steg.
+
 All evenemangssökning ligger på startsidan. Kryssa ur de leverantörer som
 inte ska ingå och använd **Välj alla** för att återställa urvalet.
 Valet behålls vid datumfilter och sidbläddring. Dubbletter och biljettlänkar

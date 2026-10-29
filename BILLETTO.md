@@ -77,6 +77,14 @@ kategorier visas under Övrigt.
 
 ## Cache, fel och avgränsningar
 
+Första sidan visas stegvis med Visit Stockholm först när den källan är
+vald. Övriga valda leverantörer fyller sedan på samma lista. Leverantörs-
+kataloger delar en separat cache med högst 48 poster per process. Identiska
+pågående hämtningar återanvänds och andra sökningar blockeras inte av
+ett globalt nätverkslås. Fel eller ofullständiga kataloger prövas igen
+efter en minut; fullständiga leverantörskataloger hålls i tio minuter.
+
+
 Kataloger cachelagras tio minuter per period och serverprocess (högst 16
 poster). Om en källa faller bort visas övrigas utbud med en markering och
 ett nytt försök tillåts efter en minut. Vid totalt avbrott kan en sparad

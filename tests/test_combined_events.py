@@ -1,5 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 import billetto_events as billetto
 import club_events as combined
@@ -19,6 +21,78 @@ def normalized(source='Ticketmaster', **kw):
 class CombinedEventsTests(TestCase):
     def setUp(self):
         combined._cache.clear()
+        combined._provider_cache.clear()
+
+
+    @patch.object(combined,'_kulturbiljetter_catalog')
+    @patch.object(combined,'_ticketmaster_catalog')
+    @patch.object(combined,'_visit_catalog')
+    def test_progressive_prefixes_reuse_each_provider_once(self, visit, tm, kultur):
+        visit.return_value={'events':[raw('Visit Stockholm',time='')]}
+        tm.return_value={'events':[raw('Ticketmaster')]}
+        kultur.return_value={'events':[]}
+        settings={'TICKETMASTER_API_KEY':'test-key','KULTURBILJETTER_API_KEY':'test-kultur'}
+        first=combined.get_events(settings,selected_sources=('Visit Stockholm',))
+        self.assertEqual(first['events'][0]['link_source'],'Visit Stockholm')
+        tm.assert_not_called();kultur.assert_not_called()
+        second=combined.get_events(settings,selected_sources=('Visit Stockholm','Ticketmaster'))
+        self.assertEqual(second['count'],1)
+        self.assertEqual(second['events'][0]['link_source'],'Ticketmaster')
+        third=combined.get_events(settings)
+        self.assertEqual(third['count'],1)
+        visit.assert_called_once();tm.assert_called_once();kultur.assert_called_once()
+
+    @patch.object(combined,'_kulturbiljetter_catalog')
+    @patch.object(combined,'_visit_catalog')
+    def test_slow_provider_does_not_block_visit_only_request(self, visit, kultur):
+        started,release=Event(),Event()
+        visit.return_value={'events':[raw('Visit Stockholm',time='')]}
+        def slow(*args):
+            started.set()
+            if not release.wait(3):
+                raise AssertionError('Test did not release slow provider')
+            return {'events':[]}
+        kultur.side_effect=slow
+        settings={'KULTURBILJETTER_API_KEY':'test-key'}
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            full=executor.submit(combined.get_events,settings)
+            try:
+                self.assertTrue(started.wait(1))
+                fast=executor.submit(combined.get_events,settings,selected_sources=('Visit Stockholm',))
+                self.assertEqual(fast.result(timeout=1)['count'],1)
+                self.assertFalse(full.done())
+            finally:
+                release.set()
+            self.assertEqual(full.result(timeout=1)['count'],1)
+        visit.assert_called_once()
+        self.assertEqual(combined._fills,{})
+        self.assertEqual(combined._provider_fills,{})
+
+    @patch.object(combined,'_ticketmaster_catalog')
+    @patch.object(combined,'_visit_catalog',side_effect=combined.visit.SourceUnavailable())
+    def test_failed_first_source_is_not_retried_for_each_stage(self, visit, tm):
+        tm.return_value={'events':[raw('Ticketmaster')]}
+        settings={'TICKETMASTER_API_KEY':'test-key'}
+        with self.assertRaises(combined.SourceUnavailable):
+            combined.get_events(settings,selected_sources=('Visit Stockholm',))
+        data=combined.get_events(settings)
+        self.assertEqual(data['count'],1)
+        self.assertEqual(data['unavailable_sources'],['Visit Stockholm'])
+        visit.assert_called_once();tm.assert_called_once()
+        self.assertEqual(combined._fills,{})
+
+    @patch.object(combined,'_visit_catalog')
+    def test_stale_fallback_does_not_extend_original_cache_age(self, visit):
+        visit.return_value={'events':[raw('Visit Stockholm')]}
+        combined.get_events({})
+        for cache in (combined._cache,combined._provider_cache):
+            key=next(iter(cache));stamp,data=cache[key]
+            cache[key]=(stamp-601,data)
+        key=next(iter(combined._cache));original=combined._cache[key][0]
+        visit.side_effect=combined.visit.SourceUnavailable()
+        data=combined.get_events({})
+        self.assertTrue(data['stale'])
+        self.assertEqual(combined._cache[key][0],original)
 
     @patch.object(combined,'_billetto_catalog')
     @patch.object(combined,'_ticketmaster_catalog')
@@ -65,9 +139,9 @@ class CombinedEventsTests(TestCase):
         self.assertEqual(second['count'],1)
         self.assertEqual(second['events'][0]['link_source'],'Billetto')
         self.assertEqual(second['events'][0]['sources'],['Billetto','Visit Stockholm'])
-        tm.assert_not_called();visit.assert_called_once();billetto.assert_called_once()
+        tm.assert_not_called();visit.assert_not_called();billetto.assert_not_called()
         combined.get_events(settings,selected_sources=selected)
-        self.assertEqual(visit.call_count,1)
+        self.assertEqual(visit.call_count,0)
         self.assertEqual(combined.get_events(settings)['events'][0]['link_source'],'Ticketmaster')
 
     @patch.object(combined,'_billetto_catalog')

@@ -1,6 +1,6 @@
 """Common event catalog: provider adapters, strict geography and conservative deduplication."""
 from collections import OrderedDict, defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, Future
 from copy import deepcopy
 from datetime import date, datetime, timezone
 from hashlib import sha256
@@ -17,6 +17,8 @@ import tickster_events as tickster
 import kulturbiljetter_events as kulturbiljetter
 
 _cache, _lock = OrderedDict(), Lock()
+_fills = {}
+_provider_cache, _provider_fills = OrderedDict(), {}
 PRIORITY = {"Ticketmaster": 0, "Billetto": 1, "Tickster": 2, "Kulturbiljetter": 3, "Visit Stockholm": 4}
 LABELS = {"music": "Musik", "stage": "Scen & film", "art": "Utställningar",
           "sport": "Sport & hälsa", "food": "Mat & dryck", "family": "Familj", "other": "Övrigt"}
@@ -24,6 +26,63 @@ LABELS = {"music": "Musik", "stage": "Scen & film", "art": "Utställningar",
 
 class SourceUnavailable(Exception):
     pass
+
+
+SOURCE_ERRORS = (SourceUnavailable, visit.SourceUnavailable, ticketmaster.SourceUnavailable,
+                 billetto.SourceUnavailable, tickster.SourceUnavailable, kulturbiljetter.SourceUnavailable)
+
+
+def _cache_ttl(data):
+    return 60 if (data.get("unavailable") or data.get("unavailable_sources")
+                  or data.get("pending") or data.get("pending_sources") or data.get("stale")) else 600
+
+
+def _cached_value(cache, fills, key, load, limit, cache_stale=True):
+    """Deduplicate identical fills without holding a global lock during network I/O."""
+    with _lock:
+        cached = cache.get(key)
+        if cached and monotonic() - cached[0] < _cache_ttl(cached[1]):
+            cache.move_to_end(key)
+            return cached[1]
+        future = fills.get(key)
+        owner = future is None
+        if owner:
+            future = fills[key] = Future()
+    if not owner:
+        return future.result()
+    try:
+        value = load()
+        with _lock:
+            if cache_stale or not value.get("stale"):
+                cache[key] = (monotonic(), value)
+                cache.move_to_end(key)
+                while len(cache) > limit:
+                    cache.popitem(last=False)
+        future.set_result(value)
+        return value
+    except BaseException as error:
+        future.set_exception(error)
+        raise
+    finally:
+        with _lock:
+            if fills.get(key) is future:
+                del fills[key]
+
+
+def _credentials(settings):
+    values = tuple(settings.get(k, "") for k in (
+        "TICKETMASTER_API_KEY", "BILLETTO_API_KEYPAIR", "TICKSTER_API_KEY", "KULTURBILJETTER_API_KEY"))
+    return sha256(repr(values).encode()).hexdigest()
+
+
+def _provider_catalog(name, fetch, settings, start_date, end_date):
+    key = (_credentials(settings), name, start_date, end_date)
+    def load():
+        try:
+            return fetch(settings, start_date, end_date)
+        except SOURCE_ERRORS:
+            return {"events": [], "unavailable": True}
+    return _cached_value(_provider_cache, _provider_fills, key, load, 48)
 
 
 def text_key(value):
@@ -149,12 +208,15 @@ def _catalog(settings, start_date, end_date, selected_sources=None):
     truncated, stale = False, False
     today = datetime.now(ZoneInfo("Europe/Stockholm")).date().isoformat()
     with ThreadPoolExecutor(max_workers=5) as executor:
-        jobs = {name: executor.submit(fetch, settings, start_date, end_date) for name, fetch in providers(settings, selected_sources).items()}
+        jobs = {name: executor.submit(_provider_catalog, name, fetch, settings, start_date, end_date)
+                for name, fetch in providers(settings, selected_sources).items()}
         for name, job in jobs.items():
             try:
                 data = job.result()
-            except (visit.SourceUnavailable, ticketmaster.SourceUnavailable, billetto.SourceUnavailable,
-                    tickster.SourceUnavailable, kulturbiljetter.SourceUnavailable):
+            except SOURCE_ERRORS:
+                unavailable.append(name)
+                continue
+            if data.get("unavailable"):
                 unavailable.append(name)
                 continue
             successful.append(name)
@@ -184,30 +246,23 @@ def _catalog(settings, start_date, end_date, selected_sources=None):
 
 def get_events(settings, category="", subcategory="", page=1, start_date="", end_date="", selected_sources=None):
     selected = tuple(providers(settings, selected_sources))
-    credentials = tuple(settings.get(k, "") for k in ("TICKETMASTER_API_KEY", "BILLETTO_API_KEYPAIR", "TICKSTER_API_KEY", "KULTURBILJETTER_API_KEY"))
-    key = (sha256(repr(credentials).encode()).hexdigest(), start_date, end_date, selected)
+    key = (_credentials(settings), start_date, end_date, selected)
     with _lock:
         cached = _cache.get(key)
-        ttl = 60 if cached and (cached[1]["unavailable_sources"] or cached[1].get("pending_sources")) else 600
-        if cached and monotonic() - cached[0] < ttl:
-            data = cached[1]
-        else:
-            try:
-                data = _catalog(settings, start_date, end_date, selected)
-            except SourceUnavailable:
-                if not cached or monotonic() - cached[0] >= 3600:
-                    raise
-                data = deepcopy(cached[1])
-                data["stale"] = True
-                data["unavailable_sources"] = list(selected)
-            else:
-                _cache[key] = (monotonic(), data)
-                _cache.move_to_end(key)
-                while len(_cache) > 16:
-                    _cache.popitem(last=False)
-        items = [e for e in data["events"] if (not category or e["category_id"] == category)
-                 and (not subcategory or e["genre_id"] == subcategory)]
-        offset = (page - 1) * 9
-        return deepcopy({**data, "events": items[offset:offset + 9], "count": len(items), "page": page,
-                         "selected_sources": list(selected),
-                         "next": page + 1 if offset + 9 < len(items) else None})
+    def load():
+        try:
+            return _catalog(settings, start_date, end_date, selected)
+        except SourceUnavailable:
+            if not cached or monotonic() - cached[0] >= 3600:
+                raise
+            data = deepcopy(cached[1])
+            data["stale"] = True
+            data["unavailable_sources"] = list(selected)
+            return data
+    data = _cached_value(_cache, _fills, key, load, 16, cache_stale=False)
+    items = [e for e in data["events"] if (not category or e["category_id"] == category)
+             and (not subcategory or e["genre_id"] == subcategory)]
+    offset = (page - 1) * 9
+    return deepcopy({**data, "events": items[offset:offset + 9], "count": len(items), "page": page,
+                     "selected_sources": list(selected),
+                     "next": page + 1 if offset + 9 < len(items) else None})
