@@ -6,6 +6,13 @@ SOURCE_NAMES = {"visit-stockholm": "Visit Stockholm", "ticketmaster": "Ticketmas
                 "tickster": "Tickster", "kulturbiljetter": "Kulturbiljetter"}
 
 
+def parse_search(query):
+    value = query.get("q", "")
+    if not isinstance(value, str) or len(value) > 120 or re.search(r"[\x00-\x1f\x7f]", value):
+        raise ValueError("Invalid search text")
+    return " ".join(value.split())
+
+
 def parse_sources(query):
     if "sources" not in query:
         return None

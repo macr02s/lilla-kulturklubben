@@ -265,14 +265,14 @@ def _visit_preview(start_date, end_date):
     return data
 
 
-def get_events(settings, category="", subcategory="", page=1, start_date="", end_date="", selected_sources=None, preview=False):
+def get_events(settings, category="", subcategory="", page=1, start_date="", end_date="", selected_sources=None, preview=False, search=""):
     selected = tuple(providers(settings, selected_sources))
     key = (_credentials(settings), start_date, end_date, selected)
     if preview:
         if selected != ("Visit Stockholm",) or page != 1:
             raise ValueError("Preview is only available for Visit Stockholm's first page")
         data = _cached_value(_cache, _fills, key + ("preview",), lambda: _visit_preview(start_date, end_date), 16, cache_stale=False)
-        return _page(data, category, subcategory, page, selected)
+        return _page(data, category, subcategory, page, selected, search)
     with _lock:
         cached = _cache.get(key)
     def load():
@@ -286,12 +286,18 @@ def get_events(settings, category="", subcategory="", page=1, start_date="", end
             data["unavailable_sources"] = list(selected)
             return data
     data = _cached_value(_cache, _fills, key, load, 16, cache_stale=False)
-    return _page(data, category, subcategory, page, selected)
+    return _page(data, category, subcategory, page, selected, search)
 
 
-def _page(data, category, subcategory, page, selected):
+def _page(data, category, subcategory, page, selected, search=""):
+    words = text_key(search).split()
+    def matches(event):
+        if not search:
+            return True
+        haystack = text_key(" ".join(str(event.get(field) or "") for field in ("title", "venue", "category", "genre")))
+        return bool(words) and all(word in haystack for word in words)
     items = [e for e in data["events"] if (not category or e["category_id"] == category)
-             and (not subcategory or e["genre_id"] == subcategory)]
+             and (not subcategory or e["genre_id"] == subcategory) and matches(e)]
     offset = (page - 1) * 9
     return deepcopy({**data, "events": items[offset:offset + 9], "count": len(items), "page": page,
                      "selected_sources": list(selected),

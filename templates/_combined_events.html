@@ -1,5 +1,9 @@
 <section class="{% if events_home %}wrap {% else %}club-events {% endif %}events-section" id="{{ events_id }}" aria-labelledby="{{ events_id }}-heading" data-events-widget data-source="biljettleverantören" data-endpoint="{{ events_endpoint }}">
   <div class="section-title"><div>{% if events_home %}<p class="eyebrow">UT OCH UPPLEV STOCKHOLM</p>{% endif %}<h2 id="{{ events_id }}-heading">{{ events_title }}</h2></div></div>
+  <form class="event-search" data-role="search-form" role="search" aria-label="Sök bland evenemangen">
+    <label for="{{ events_id }}-search">Sök evenemang</label>
+    <div><input type="search" id="{{ events_id }}-search" data-role="search" name="q" maxlength="120" placeholder="Namn, artist eller spelplats" autocomplete="off"><button class="filter-button" type="submit">Sök</button><button class="filter-button" type="button" data-role="clear-search" disabled>Rensa</button></div>
+  </form>
   <fieldset class="event-sources">
     <legend>Välj vilka leverantörer som ska ingå</legend>
     <div data-role="sources">

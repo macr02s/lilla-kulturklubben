@@ -12,6 +12,10 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
   const dateForm = section.querySelector('[data-role="date-filter"]');
   const fromInput = section.querySelector('[data-role="from-month"]');
   const toInput = section.querySelector('[data-role="to-month"]');
+  const searchForm = section.querySelector('[data-role="search-form"]');
+  const searchInput = section.querySelector('[data-role="search"]');
+  const clearSearch = section.querySelector('[data-role="clear-search"]');
+  let searchText = '';
   let fromMonth = '', toMonth = '';
   let filtersNeedRefresh = false;
   let category = '', subcategory = '', next = null, allCategories = [], controller;
@@ -134,6 +138,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       (remaining.length ? 'Sökningen pågår…' : 'Inga evenemang hittades för dina val.') :
       `${data.count} ${eventLabel}${title ? ' inom ' + title : ''} · Visar ${results.children.length}`;
     if (fromMonth) status.textContent += ` · ${monthFormatter.format(new Date(fromMonth + '-01T12:00:00'))} – ${monthFormatter.format(new Date(toMonth + '-01T12:00:00'))}`;
+    if (searchText) status.textContent += ` \u00b7 S\u00f6kning: \u201d${searchText}\u201d`;
     if (data.truncated) status.textContent += ' · Del av utbudet visas.';
     if (data.pending_sources?.length) status.textContent += ' · Utbudet från ' + data.pending_sources.join(', ') + ' uppdateras.';
     if (data.stale) status.textContent += ' · Tillfälligt visas tidigare hämtade uppgifter.';
@@ -156,6 +161,7 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       query.set('from_month', fromMonth);
       query.set('to_month', toMonth);
     }
+    if (searchText) query.set('q', searchText);
     failedPage = page;
     pending = true;
     let shown = false, complete = false;
@@ -212,6 +218,26 @@ document.querySelectorAll('[data-events-widget]').forEach(section => {
       }
     }
   }
+  function applySearch() {
+    searchText = searchInput.value.trim();
+    clearSearch.disabled = !searchText;
+    load(1);
+  }
+  searchForm.addEventListener('submit', event => {
+    event.preventDefault();
+    applySearch();
+  });
+  searchInput.addEventListener('input', () => {
+    clearSearch.disabled = !searchInput.value && !searchText;
+  });
+  searchInput.addEventListener('search', () => {
+    if (!searchInput.value && searchText) applySearch();
+  });
+  clearSearch.addEventListener('click', () => {
+    searchInput.value = '';
+    applySearch();
+    searchInput.focus();
+  });
   more.addEventListener('click', () => { if (!pending && next) load(next); });
   function selectSources() {
     selectedSources = sourceInputs.filter(input => input.checked).map(input => input.value);

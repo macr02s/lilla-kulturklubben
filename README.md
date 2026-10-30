@@ -16,6 +16,13 @@ För återanvänd bankanslutning på Render, se [beständig lagring](BESTANDIG_L
 
 ## Evenemang
 
+Sökfältet på startsidan filtrerar det gemensamma utbudet efter namn,
+spelplats och kategori. Skriv ett eller flera ord och tryck **Sök** eller Enter.
+Alla ord ska finnas med; stora/små bokstäver och accenter spelar ingen roll.
+Månader, kategorier och leverantörer kombineras med sökningen. **Rensa**
+tar bara bort söktexten. Filtrering sker före sidindelning i det hämtade
+utbudet och återanvänder serverns cache utan extra leverantörsanrop.
+
 Kategorier, underkategorier och evenemang hämtas via Flask från det publika
 dataanrop som används av https://www.visitstockholm.se/event/:
 `https://www.visitstockholm.se/api/v1/singulareventdates/`.

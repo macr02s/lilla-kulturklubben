@@ -10,7 +10,7 @@ from club_banking import init_banking
 from visit_stockholm import get_events, SourceUnavailable
 import ticketmaster_events as ticketmaster
 from event_months import month_range
-from event_query import parse_filters, parse_sources, SOURCE_NAMES
+from event_query import parse_filters, parse_sources, parse_search, SOURCE_NAMES
 import club_events
 from billetto_images import init_images, prepare_images
 
@@ -66,6 +66,7 @@ def combined_events():
     try:
         filters = parse_filters(request.args)
         sources = parse_sources(request.args)
+        search = parse_search(request.args)
         preview = request.args.get("preview", "0")
         if preview not in {"0", "1"} or (preview == "1" and (sources != ("Visit Stockholm",) or filters[2] != 1)):
             raise ValueError()
@@ -73,6 +74,8 @@ def combined_events():
         return jsonify(error="Kontrollera kategori, sida och månadsperiod."), 400
     try:
         options = {"preview": True} if preview == "1" else {}
+        if search:
+            options["search"] = search
         return jsonify(prepare_images(club_events.get_events(app.config, *filters, selected_sources=sources, **options)))
     except club_events.SourceUnavailable:
         return jsonify(error="Evenemangen kunde inte hämtas just nu. Försök igen om en stund."), 503
